@@ -2,13 +2,13 @@
 
 public class Stat
 {
-    Func<int> _getValue;
+    Func<float> _getValue;
     Func<string> _getTooltip;
 
     public StatType type { get; private set; }
     public StatCategory category { get; private set; }
 
-    public Stat(StatType type, StatCategory category, Func<int> getValue, Func<string> getTooltip)
+    public Stat(StatType type, StatCategory category, Func<float> getValue, Func<string> getTooltip)
     {
         this.type = type;
         this.category = category;
@@ -17,7 +17,7 @@ public class Stat
         _getTooltip = getTooltip;
     }
 
-    public int GetValue()
+    public float GetValue()
     {
         return _getValue();
     }

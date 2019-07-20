@@ -5,7 +5,7 @@ using System.Collections.Generic;
 
 public static class Pathfinder
 {
-    public static Dictionary<Tile, float> Dijkstra(Dictionary<Tile, float> map, Tile origin, int maxDistance)
+    public static Dictionary<Tile, float> Dijkstra(Dictionary<Tile, float> map, Tile origin, int maxDistance, bool ignoreOccupiedTiles)
     {
         map.Clear();
 
@@ -32,7 +32,7 @@ public static class Pathfinder
 
                     Tile c = Grid.Get(xAround, zAround);
 
-                    if (closed.Contains(c) || !c.isTraversable)
+                    if (closed.Contains(c) || (ignoreOccupiedTiles ? !c.isTraversable : c.status != TileStatus.Walkable))
                         continue;
 
                     float pd = cd + Distance(t, c);
@@ -110,9 +110,9 @@ public static class Pathfinder
     /// <param name="target"></param>
     /// <param name="origin"></param>
     /// <returns></returns>
-    public static List<Tile> GetPath(Tile target, Tile origin, int maxDistance)
+    public static List<Tile> GetPath(Tile target, Tile origin, int maxDistance, bool ignoreOccupiedTiles)
     {
-        return GetPath(Dijkstra(new Dictionary<Tile, float>(), origin, maxDistance), target, origin);
+        return GetPath(Dijkstra(new Dictionary<Tile, float>(), origin, maxDistance, ignoreOccupiedTiles), target, origin);
     }
 
     public static float Distance(Tile a, Tile b)

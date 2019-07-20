@@ -9,7 +9,7 @@ public class Corridor : Region
         for (int i = 0; i < base.tiles.Count; i++)
         {
             base.tiles[i].SetIndex(-2);
-            base.tiles[i].SetStatus(TileStatus.Vacant);
+            base.tiles[i].SetStatus(TileStatus.Walkable);
         }
     }
 }

@@ -18,7 +18,7 @@ public class Tile
     {
         get
         {
-            return this.status == TileStatus.Vacant && this.entity == null;
+            return this.status == TileStatus.Walkable && this.entity == null;
         }
     }
 
@@ -67,11 +67,12 @@ public class Tile
             "Player Can See: " + ((luminosity * 100f) > Player.data.GetStat(StatType.SightThreshold).GetValue()) + "\n" +
             "Distance from Player: " + Pathfinder.Distance(this, Player.actor.tile) + "\n" +
             "Entity: " + (entity == null ? "Nothing" : entity.name) + "\n" +
-            "Is Traversable? " + isTraversable;
+            "Is Traversable? " + isTraversable + "\n" +
+            "Status: " + status.ToString();
     }
 }
 public enum TileStatus
 {
     Blocked,
-    Vacant
+    Walkable
 }

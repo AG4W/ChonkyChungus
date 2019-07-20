@@ -41,9 +41,13 @@ public class Actor : Entity
             if (Pathfinder.Distance(base.tile, (args[0] as LightSource).holder.tile) <= data.GetStat(StatType.SightRange).GetValue())
                 UpdateLoSMap();
         });
+        GlobalEvents.Subscribe(GlobalEvent.ActorAdded, (object[] args) =>
+        {
+            if (args[0] is Actor a && a == this && this != Player.actor)
+                UpdateActorVisibility();
+        });
 
         Instantiate();
-        UpdateActorVisibility(_seenByCount > 0);
     }
 
     public void AddCommand(Command c)
@@ -224,35 +228,38 @@ public class Actor : Entity
 
     void UpdateMovementMap()
     {
-        SetMap(MapType.Movement, Pathfinder.Dijkstra(this.GetMap(MapType.Movement), this.tile, this.data.GetStat(StatType.SprintRange).GetValue()));
+        SetMap(MapType.Movement, Pathfinder.Dijkstra(this.GetMap(MapType.Movement), this.tile, (int)this.data.GetStat(StatType.SprintRange).GetValue(), true));
         GlobalEvents.Raise(GlobalEvent.ActorMapChanged, this, MapType.Movement);
     }
     void UpdateLoSMap()
     {
-        SetMap(MapType.LineOfSight, Pathfinder.Dijkstra(this.GetMap(MapType.LineOfSight), this.tile, this.data.GetStat(StatType.SightRange).GetValue()));
+        SetMap(MapType.LineOfSight, Pathfinder.Dijkstra(this.GetMap(MapType.LineOfSight), this.tile, (int)this.data.GetStat(StatType.SightRange).GetValue(), false));
 
         foreach (Tile t in GetMap(MapType.LineOfSight).Keys)
         {
-            //can see tile?
-            if(t.luminosity >= this.data.GetStat(StatType.SightThreshold).GetValue())
+            if(t.entity != null)
             {
-                if(t.entity != null && t.entity is Actor a && this.visibleActors.IndexOf(a) == -1)
+                //if actor
+                if(t.entity is Actor a)
                 {
-                    this.visibleActors.Add(a);
-
-                    if (this == Player.actor)
-                        GlobalEvents.Raise(GlobalEvent.JumpCameraTo, a.tile.position, 10f);
-
-                    a.IncrementSeenByCount();
-                }
-            }
-            else
-            {
-                if (t.entity != null && t.entity is Actor a && this.visibleActors.IndexOf(a) != -1)
-                {
-                    this.visibleActors.Remove(a);
-
-                    a.DecrementSeenByCount();
+                    //if we can see whatever is on that tile
+                    if(Pathfinder.Distance(t, this.tile) <= this.data.GetStat(StatType.SightRange).GetValue() / 5 || t.luminosity >= this.data.GetStat(StatType.SightThreshold).GetValue())
+                    {
+                        if (this.visibleActors.IndexOf(a) == -1)
+                        {
+                            this.visibleActors.Add(a);
+                            a.IncrementSeenByCount();
+                        }
+                    }
+                    else
+                    {
+                        //if we're seeing an actor that we shouldnt see, remove it
+                        if(this.visibleActors.IndexOf(a) != -1)
+                        {
+                            this.visibleActors.Remove(a);
+                            a.DecrementSeenByCount();
+                        }
+                    }
                 }
             }
         }
@@ -273,22 +280,22 @@ public class Actor : Entity
     {
         _seenByCount++;
 
-        UpdateActorVisibility(_seenByCount > 0);
+        UpdateActorVisibility();
     }
     public void DecrementSeenByCount()
     {
         _seenByCount--;
     
-        UpdateActorVisibility(_seenByCount > 0);
+        UpdateActorVisibility();
     }
-    void UpdateActorVisibility(bool isVisible)
+    void UpdateActorVisibility()
     {
         if (this == Player.actor)
             return;
 
-        _model.SetActive(isVisible);
+        _model.SetActive(_seenByCount > 0);
 
-        GlobalEvents.Raise(GlobalEvent.ActorVisibilityChanged, this, isVisible);
+        GlobalEvents.Raise(GlobalEvent.ActorVisibilityChanged, this, _seenByCount > 0);
     }
 }
 public enum MapType

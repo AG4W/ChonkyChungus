@@ -1,19 +1,15 @@
-﻿using UnityEngine;
-
-using System;
-
-public class Race
+﻿public class Race
 {
-    public static int GetBaseLuminosityThreshold(RaceType type)
+    public static float GetBaseLuminosityThreshold(RaceType type)
     {
         switch (type)
         {
             case RaceType.Human:
-                return 33;
+                return .33f;
             case RaceType.Undead:
-                return 50;
+                return .50f;
             default:
-                return -1;
+                return -1f;
         }
     }
     public static int GetBaseSightRange(RaceType type)

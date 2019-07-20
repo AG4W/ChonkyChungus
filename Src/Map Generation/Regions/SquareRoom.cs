@@ -18,7 +18,7 @@
                 Tile t = Grid.Get(x, z);
 
                 t.SetIndex(base.index);
-                t.SetStatus(TileStatus.Vacant);
+                t.SetStatus(TileStatus.Walkable);
                 base.tiles.Add(t);
 
                 if (x == base.originX || x == base.originX + w || z == base.originZ || z == base.originZ + h)

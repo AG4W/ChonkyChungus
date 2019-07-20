@@ -28,7 +28,7 @@ public class NPActor : Actor
         //}
         else
         {
-            new MoveCommand(this, Pathfinder.GetPath(base.GetMap(MapType.Movement), base.GetMap(MapType.Movement).Keys.OrderBy(t => Pathfinder.Distance(this.tile, t)).First(), this.tile));
+            new MoveCommand(this, Pathfinder.GetPath(base.GetMap(MapType.Movement), base.GetMap(MapType.Movement).Keys.OrderBy(t => Pathfinder.Distance(p.tile, t)).First(), this.tile));
             new EndTurnCommand(this);
         }
     }

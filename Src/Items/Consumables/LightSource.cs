@@ -112,7 +112,7 @@ public class LightSource : Item
     }
     void UpdateInfluenceMap()
     {
-        _map = Pathfinder.Dijkstra(_map, base.holder.tile, range);
+        _map = Pathfinder.Dijkstra(_map, base.holder.tile, range, false);
     }
 
     public override GameObject Instantiate()
