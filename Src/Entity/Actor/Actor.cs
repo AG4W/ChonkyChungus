@@ -3,6 +3,9 @@
 using System.Collections;
 using System.Collections.Generic;
 
+using MoonSharp.Interpreter;
+
+[MoonSharpUserData]
 public class Actor : Entity
 {
     int _seenByCount = 0;
@@ -240,7 +243,7 @@ public class Actor : Entity
             if(t.entity != null)
             {
                 //if actor
-                if(t.entity is Actor a)
+                if(t.entity is Actor a && a != this)
                 {
                     //if we can see whatever is on that tile
                     if(Pathfinder.Distance(t, this.tile) <= this.data.GetStat(StatType.SightRange).GetValue() / 5 || t.luminosity >= this.data.GetStat(StatType.SightThreshold).GetValue())

@@ -1,9 +1,13 @@
 ﻿using UnityEngine;
 
 using System.IO;
+using System.Collections.Generic;
+using System.Linq;
 
 public static class ItemGenerator
 {
+    static ItemAction[] _actions;
+
     static DamageType[] _weaponDamageTypes;
     static DamageType _defaultDamageType;
 
@@ -13,6 +17,7 @@ public static class ItemGenerator
     {
         LoadDamageTypes();
         LoadPrefabCollections();
+        LoadItemActions();
     }
 
     static void LoadDamageTypes()
@@ -30,9 +35,20 @@ public static class ItemGenerator
         for (int i = 0; i < _prefabs.Length; i++)
             _prefabs[i] = Resources.Load<PrefabCollection>("PrefabCollections/" + ((ItemType)i).ToString());
     }
+    static void LoadItemActions()
+    {
+        List<ItemAction> actions = new List<ItemAction>();
+
+        foreach (ItemActionTemplate iat in Resources.LoadAll<ItemActionTemplate>("Templates/Item Actions/"))
+            actions.Add(iat.Instantiate());
+    
+        _actions = actions.ToArray();
+    }
 
     public static Item Get(ItemType itemType, ItemRarity rarity, DamageType type = null)
     {
+        Item i;
+
         type = type ?? (itemType == ItemType.Weapon ? _weaponDamageTypes.Random() : _defaultDamageType);
 
         GameObject prefab = _prefabs[(int)itemType].GetRandom();
@@ -41,15 +57,29 @@ public static class ItemGenerator
         switch (itemType)
         {
             case ItemType.Weapon:
-                return new Item(name, "n/a", type, prefab, rarity);
+                i = new Item(name, "n/a", type, prefab, rarity);
+                break;
             case ItemType.Armour:
-                return new Item(name, "n/a", type, prefab, rarity);
+                i = new Item(name, "n/a", type, prefab, rarity);
+                break;
             case ItemType.Consumable:
-                return new Item(name, "n/a", type, prefab, rarity);
+                i = new Item(name, "n/a", type, prefab, rarity);
+                break;
             case ItemType.LightSource:
-                return new LightSource(name, "n/a", type, prefab, rarity, 15, 14);
+                i = new LightSource(name, "n/a", type, prefab, rarity, 15, 14);
+                break;
             default:
-                return null;
+                i = null;
+                break;
         }
+
+        //setup default actions
+        i.actions.Add(_actions.First(a => a.header == "Attack"));
+        i.actions.Add(_actions.First(a => a.header == "Throw"));
+        i.actions.Add(_actions.First(a => a.header.Contains("Magic")));
+
+        i.newTurnEffects.Add(_actions.First(a => a.header.Contains("Vampiric")));
+
+        return i;
     }
 }

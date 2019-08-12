@@ -4,6 +4,8 @@ using UnityEngine.EventSystems;
 using System.Collections.Generic;
 using System.Linq;
 
+using MoonSharp.Interpreter;
+
 public class LocalInputManager : MonoBehaviour
 {
     string _debugText;
@@ -111,14 +113,17 @@ public class LocalInputManager : MonoBehaviour
     }
     void OnGUI()
     {
-        if (_current == null)
+        if (!Input.GetKey(KeyCode.L))
             return;
 
-        _debugText = _current.ToString();
-    
-        var position = _camera.WorldToScreenPoint(_current.position);
-        var textSize = GUI.skin.label.CalcSize(new GUIContent(_debugText));
-        GUI.Label(new Rect(position.x, Screen.height - position.y, textSize.x, textSize.y), _debugText);
+        foreach (Tile tile in Player.actor.GetMap(MapType.LineOfSight).Keys)
+        {
+            string text = tile.ToString();
+
+            var position = _camera.WorldToScreenPoint(tile.position);
+            var textSize = GUI.skin.label.CalcSize(new GUIContent(text));
+            GUI.Label(new Rect(position.x, Screen.height - position.y, textSize.x, textSize.y), text);
+        }
     }
 
     void ProcessLeftClick()

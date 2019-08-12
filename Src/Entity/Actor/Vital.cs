@@ -3,6 +3,9 @@
 using System;
 using System.Collections.Generic;
 
+using MoonSharp.Interpreter;
+
+[MoonSharpUserData]
 public class Vital
 {
     Func<int> _getMax;

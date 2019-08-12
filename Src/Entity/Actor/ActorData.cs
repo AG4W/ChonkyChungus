@@ -3,6 +3,9 @@
 using System.Collections.Generic;
 using System;
 
+using MoonSharp.Interpreter;
+
+[MoonSharpUserData]
 public class ActorData
 {
     Stat[] _stats;

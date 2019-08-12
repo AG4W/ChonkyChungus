@@ -2,6 +2,9 @@
 
 using System;
 
+using MoonSharp.Interpreter;
+
+[MoonSharpUserData]
 public class Attribute
 {
     Func<string> _getTooltip;

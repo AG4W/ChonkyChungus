@@ -1,5 +1,8 @@
 ﻿using System;
 
+using MoonSharp.Interpreter;
+
+[MoonSharpUserData]
 public class Stat
 {
     Func<float> _getValue;

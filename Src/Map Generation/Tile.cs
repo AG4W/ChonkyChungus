@@ -1,5 +1,8 @@
 ﻿using UnityEngine;
 
+using MoonSharp.Interpreter;
+
+[MoonSharpUserData]
 public class Tile
 {
     GameObject _prefab;
@@ -61,14 +64,18 @@ public class Tile
 
     public override string ToString()
     {
-        return
+        return "Tile <color=blue>" + x + "</color>, <color=red>" + 0 + "</color>, <color=green>" + z + "</color>\n" +
+            "Luminosity: " + (luminosity * 100f).ToString("#0.0") + "%\n" +
+            "Player Can See: " + (((luminosity * 100f) > Player.data.GetStat(StatType.SightThreshold).GetValue()) ? "<color=green>true</color>" : "<color=red>false</color>");
+
+        /*return
             "Tile <color=blue>" + x + "</color>, <color=red>" + 0 + "</color>, <color=green>" + z + "</color>\n" +
             "Luminosity: " + (luminosity * 100f).ToString("#0.0") + "%\n" +
             "Player Can See: " + ((luminosity * 100f) > Player.data.GetStat(StatType.SightThreshold).GetValue()) + "\n" +
             "Distance from Player: " + Pathfinder.Distance(this, Player.actor.tile) + "\n" +
             "Entity: " + (entity == null ? "Nothing" : entity.name) + "\n" +
             "Is Traversable? " + isTraversable + "\n" +
-            "Status: " + status.ToString();
+            "Status: " + status.ToString();*/
     }
 }
 public enum TileStatus
