@@ -18,7 +18,7 @@ public static class GameManager
     {
         _dungeon = new Dungeon();
         _actors = new List<Actor>();
-
+    
         GlobalEvents.Subscribe(GlobalEvent.ActorAdded, (object[] args) => 
         {
             AddActor((Actor)args[0]);
@@ -57,6 +57,11 @@ public static class GameManager
 
         for (int i = 0; i < Synched.Next(4, 10); i++)
             new CreateNPActorCommand(templates.Random()).Execute();
+
+        new CreateNPActorCommand(templates.Random(), Grid.Get((int)Player.actor.tile.position.x + 3, (int)Player.actor.tile.position.z + 3)).Execute();
+        new CreateNPActorCommand(templates.Random(), Grid.Get((int)Player.actor.tile.position.x + 3, (int)Player.actor.tile.position.z + -3)).Execute();
+        new CreateNPActorCommand(templates.Random(), Grid.Get((int)Player.actor.tile.position.x + -3, (int)Player.actor.tile.position.z + -3)).Execute();
+        new CreateNPActorCommand(templates.Random(), Grid.Get((int)Player.actor.tile.position.x + -3, (int)Player.actor.tile.position.z + 3)).Execute();
     }
     static void CreateMission()
     {

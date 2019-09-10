@@ -4,8 +4,6 @@ using UnityEngine.EventSystems;
 using System.Collections.Generic;
 using System.Linq;
 
-using MoonSharp.Interpreter;
-
 public class LocalInputManager : MonoBehaviour
 {
     string _debugText;
@@ -19,9 +17,7 @@ public class LocalInputManager : MonoBehaviour
     MeshRenderer _markerRenderer;
     LineRenderer _markerLine;
     ScalePulseEffect _markerPulseEffect;
-
-    GameObject _grid;
-    GameObject _gridMarker;
+    
     LineRenderer _gridOutline;
     List<GameObject> _gridMarkers = new List<GameObject>();
 
@@ -30,7 +26,23 @@ public class LocalInputManager : MonoBehaviour
     Tile _current;
     List<Tile> _currentPath;
 
+    KeyCode[] _alphaKeys = new KeyCode[]
+    {
+        KeyCode.Alpha1,
+        KeyCode.Alpha2,
+        KeyCode.Alpha3,
+        KeyCode.Alpha4,
+        KeyCode.Alpha5,
+        KeyCode.Alpha6,
+        KeyCode.Alpha7,
+        KeyCode.Alpha8,
+        KeyCode.Alpha9,
+        KeyCode.Alpha0,
+        KeyCode.Pipe
+    };
+
     bool _showSprintRange;
+    bool _inTargetingMode = false;
     
     void Awake()
     {
@@ -41,9 +53,6 @@ public class LocalInputManager : MonoBehaviour
         _markerLine.endWidth = .05f;
         _markerPulseEffect = _marker.GetComponentInChildren<ScalePulseEffect>();
 
-        _grid = new GameObject("grid visuals root");
-        _gridMarker = Resources.Load<GameObject>("gridMarker");
-
         _camera = Camera.main;
 
         GlobalEvents.Subscribe(GlobalEvent.ToggleMovement, (object[] args) => ToggleSprint());
@@ -53,7 +62,6 @@ public class LocalInputManager : MonoBehaviour
             if ((Actor)args[0] != Player.actor)
                 return;
 
-            _grid.SetActive(true);
             _marker.SetActive(true);
         });
         GlobalEvents.Subscribe(GlobalEvent.EndTurn, (object[] args) =>
@@ -61,55 +69,79 @@ public class LocalInputManager : MonoBehaviour
             if ((Actor)args[0] != Player.actor)
                 return;
 
-            _grid.SetActive(false);
             _marker.SetActive(false);
         });
-
-        GlobalEvents.Subscribe(GlobalEvent.ActorMapChanged, (object[] args) =>
-        {
-            if ((Actor)args[0] == Player.actor && (MapType)args[1] == MapType.Movement)
-                UpdateGridMarkers(Player.actor.GetMap(MapType.Movement));
-        });
+        
         GlobalEvents.Subscribe(GlobalEvent.ActorVitalChanged, (object[] args) =>
         {
             if((Actor)args[0] == Player.actor && (VitalType)args[1] == VitalType.Stamina)
                 UpdateMarkerLine();
         });
+
+        GlobalEvents.Subscribe(GlobalEvent.EnterTargetingMode, (object[] args) => SetTargetingMode(true));
+        GlobalEvents.Subscribe(GlobalEvent.ExitTargetingMode, (object[] args) => SetTargetingMode(false));
     }
     void Update()
     {
-        if(Input.GetKeyDown(KeyCode.Alpha1))
-            Player.data.AddItem(ItemGenerator.Get(ItemType.Weapon, ItemRarity.Common));
-        if (Input.GetKeyDown(KeyCode.Alpha2))
-            Player.data.AddItem(ItemGenerator.Get(ItemType.LightSource, ItemRarity.Common));
-        if (Input.GetKeyDown(KeyCode.Alpha8))
-            Player.IncreaseExperience(Player.level * 1000);
+        if (_inTargetingMode)
+        {
+            //move to next
+            if (Input.GetKey(KeyCode.LeftControl) && Input.GetKeyDown(KeyCode.Tab))
+                GlobalEvents.Raise(GlobalEvent.StepTargetIndex, false);
+            if (Input.GetKeyDown(KeyCode.Tab))
+                GlobalEvents.Raise(GlobalEvent.StepTargetIndex, true);
+            //confirm target selection
+            if (Input.GetKeyDown(KeyCode.Space))
+                GlobalEvents.Raise(GlobalEvent.ExitTargetingMode, true);
+            //exit target selection
+            if (Input.GetKeyDown(KeyCode.Escape))
+                GlobalEvents.Raise(GlobalEvent.ExitTargetingMode, false);
+        }
+        else
+        {
+            if (Player.actor.isBusy || !Player.actor.hasTurn)
+                return;
 
-        if (Input.GetKeyDown(KeyCode.I))
-            GlobalEvents.Raise(GlobalEvent.ToggleInventory);
-        else if (Input.GetKeyDown(KeyCode.C))
-            GlobalEvents.Raise(GlobalEvent.ToggleCharacter);
-        else if (Input.GetKeyDown(KeyCode.N))
-            GlobalEvents.Raise(GlobalEvent.ToggleSkills);
+            //iterate alphas
+            for (int i = 0; i < _alphaKeys.Length; i++)
+                if (Input.GetKeyDown(_alphaKeys[i]))
+                    GlobalEvents.Raise(GlobalEvent.HotkeyPressed, i);
 
-        if (EventSystem.current.IsPointerOverGameObject())
-            return;
-    
-        if (Player.actor.isBusy || !Player.actor.hasTurn)
-            return;
+            if (Input.GetKeyDown(KeyCode.M))
+                Player.data.AddItem(ItemGenerator.Get(ItemType.Weapon, ItemRarity.Common));
+            if (Input.GetKeyDown(KeyCode.N))
+                Player.data.AddItem(ItemGenerator.Get(ItemType.LightSource, ItemRarity.Common));
+            if (Input.GetKeyDown(KeyCode.B))
+                Player.data.AddSpell(ItemGenerator.GetRandom());
+            if (Input.GetKeyDown(KeyCode.V))
+                Player.IncreaseExperience(Player.level * 1000);
 
-        UpdateCurrentTile();
+            if (Input.GetKey(KeyCode.LeftControl) && Input.GetKeyDown(KeyCode.Q))
+                GlobalEvents.Raise(GlobalEvent.SetGridMap, MapType.Movement);
+            if (Input.GetKey(KeyCode.LeftControl) && Input.GetKeyDown(KeyCode.W))
+                GlobalEvents.Raise(GlobalEvent.SetGridMap, MapType.LineOfSight);
 
-        if (Input.GetKeyDown(KeyCode.Mouse0))
-            ProcessLeftClick();
-        else if (Input.GetKeyDown(KeyCode.Mouse1))
-            ProcessRightClick();
-        else if (Input.GetKeyDown(KeyCode.Space))
-            new EndTurnCommand(Player.actor);
-        else if (Input.GetKeyDown(KeyCode.LeftShift))
-            GlobalEvents.Raise(GlobalEvent.ToggleMovement);
-        else if (Input.GetKeyDown(KeyCode.Tab))
-            ToggleGridMarkers();
+            if (Input.GetKeyDown(KeyCode.I))
+                GlobalEvents.Raise(GlobalEvent.ToggleInventory);
+            else if (Input.GetKeyDown(KeyCode.C))
+                GlobalEvents.Raise(GlobalEvent.ToggleCharacter);
+
+            if (EventSystem.current.IsPointerOverGameObject())
+                return;
+
+            UpdateCurrentTile();
+
+            if (Input.GetKeyDown(KeyCode.Mouse0))
+                ProcessLeftClick();
+            else if (Input.GetKeyDown(KeyCode.Mouse1))
+                ProcessRightClick();
+            else if (Input.GetKeyDown(KeyCode.Space))
+                new EndTurnCommand(Player.actor);
+            else if (Input.GetKeyDown(KeyCode.LeftShift))
+                GlobalEvents.Raise(GlobalEvent.ToggleMovement);
+            else if (Input.GetKeyDown(KeyCode.Tab))
+                GlobalEvents.Raise(GlobalEvent.ToggleGridVisibility);
+        }
     }
     void OnGUI()
     {
@@ -118,11 +150,14 @@ public class LocalInputManager : MonoBehaviour
 
         foreach (Tile tile in Player.actor.GetMap(MapType.LineOfSight).Keys)
         {
-            string text = tile.ToString();
+            if (Pathfinder.Distance(tile, Player.actor.tile) <= 5 || tile.luminosity >= Player.actor.data.GetStat(StatType.SightThreshold).GetValue())
+            {
+                string text = tile.ToString();
 
-            var position = _camera.WorldToScreenPoint(tile.position);
-            var textSize = GUI.skin.label.CalcSize(new GUIContent(text));
-            GUI.Label(new Rect(position.x, Screen.height - position.y, textSize.x, textSize.y), text);
+                var position = _camera.WorldToScreenPoint(tile.position);
+                var textSize = GUI.skin.label.CalcSize(new GUIContent(text));
+                GUI.Label(new Rect(position.x, Screen.height - position.y, textSize.x, textSize.y), text);
+            }
         }
     }
 
@@ -243,32 +278,6 @@ public class LocalInputManager : MonoBehaviour
         for (int i = 0; i < _currentPath.Count; i++)
             _markerLine.SetPosition(i + 1, _currentPath[i].position + Vector3.up * .33f);
     }
-    void UpdateGridMarkers(Dictionary<Tile, float> map)
-    {
-        for (int i = 0; i < _gridMarkers.Count; i++)
-            Destroy(_gridMarkers[i]);
-    
-        _gridMarkers.Clear();
-    
-        MeshRenderer mr;
-        Color c;
-    
-        foreach (Tile tile in map.Keys)
-        {
-            GameObject g = Instantiate(_gridMarker, _grid.transform);
-            g.transform.position = tile.position;
-        
-            c = Pathfinder.Distance(Player.actor.tile, tile) > Player.data.GetStat(StatType.WalkRange).GetValue() ? _secondary : _main;
-            c.a = tile.luminosity;
-            //c.a /= _gridTransparencyDivider;
-
-            mr = g.GetComponentInChildren<MeshRenderer>();
-            mr.material.SetColor("_UnlitColor", c);
-            //mr.material.SetColor("_EmissiveColor", mr.material.color * 3f);
-
-            _gridMarkers.Add(g);
-        }
-    }
 
     void ToggleSprint()
     {
@@ -276,9 +285,10 @@ public class LocalInputManager : MonoBehaviour
 
         UpdateMarkerLine();
     }
-    void ToggleGridMarkers()
+
+    void SetTargetingMode(bool status)
     {
-        _grid.SetActive(!_grid.activeSelf);
+        _inTargetingMode = status;
     }
 
     Tile MouseToTile()

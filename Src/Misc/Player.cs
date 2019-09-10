@@ -1,5 +1,8 @@
 ﻿using UnityEngine;
 
+using MoonSharp.Interpreter;
+
+[MoonSharpUserData]
 public static class Player
 {
     public static int level { get; private set; } = 1;

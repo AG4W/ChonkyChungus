@@ -12,6 +12,8 @@ public class GenericPointerHandler : MonoBehaviour, IPointerEnterHandler, IPoint
     Action _onRightDown;
     Action _onExit;
 
+    bool _isInteractable = true;
+
     [SerializeField]bool _playEnterExitSFX;
     [SerializeField]bool _playClickSFX;
 
@@ -20,6 +22,7 @@ public class GenericPointerHandler : MonoBehaviour, IPointerEnterHandler, IPoint
     [SerializeField]Graphic[] _graphics;
 
     [SerializeField]Color _highlightColor = Color.white;
+    [SerializeField]Color _disabledColor = Color.gray;
     Color[] _graphicColors;
 
     public void Initialize(Action onEnter = null, Action onLeftDown = null, Action onScrollDown = null, Action onRightDown = null, Action onExit = null)
@@ -51,6 +54,9 @@ public class GenericPointerHandler : MonoBehaviour, IPointerEnterHandler, IPoint
     }
     public void OnPointerDown(PointerEventData eventData)
     {
+        if (!_isInteractable)
+            return;
+
         switch (eventData.button)
         {
             case PointerEventData.InputButton.Left:
@@ -87,6 +93,31 @@ public class GenericPointerHandler : MonoBehaviour, IPointerEnterHandler, IPoint
     void ResetColors()
     {
         for (int i = 0; i < _graphics.Length; i++)
-            _graphics[i].color = _graphicColors[i];
+            _graphics[i].color = _isInteractable ? _graphicColors[i] : _disabledColor;
+    }
+
+    public void Invoke(PointerEventData.InputButton button)
+    {
+        switch (button)
+        {
+            case PointerEventData.InputButton.Left:
+                _onLeftDown?.Invoke();
+                break;
+            case PointerEventData.InputButton.Right:
+                _onRightDown?.Invoke();
+                break;
+            case PointerEventData.InputButton.Middle:
+                _onScrollDown?.Invoke();
+                break;
+            default:
+                return;
+        }
+    }
+    public void SetInteractable(bool interactable)
+    {
+        _isInteractable = interactable;
+
+        for (int i = 0; i < _graphics.Length; i++)
+            _graphics[i].color = _isInteractable ? _graphics[i].color : _disabledColor;
     }
 }

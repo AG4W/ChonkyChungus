@@ -1,6 +1,9 @@
 ﻿using System;
 using System.Collections.Generic;
 
+using MoonSharp.Interpreter;
+
+[MoonSharpUserData]
 public static class GlobalEvents
 {
     static List<Action<object[]>>[] _events;
@@ -31,14 +34,17 @@ public static class GlobalEvents
 }
 public enum GlobalEvent
 {
+    //more init
     PCGComplete,
 
+    //ui
     ToggleInventory,
     ToggleCharacter,
     ToggleSkills,
 
     ToggleMovement,
 
+    //actors
     ActorAdded,
     ActorMoveStart,
     ActorMoveEnd,
@@ -46,25 +52,50 @@ public enum GlobalEvent
     ActorVisibilityChanged,
     ActorEquipmentChanged,
     ActorInventoryChanged,
-    ActorSpellbookChanged,
+    ActorSpellsChanged,
     ActorExperienceChanged,
     ActorLeveledUp,
     ActorAttributeChanged,
     ActorVitalChanged,
+    ActorTargetsChanged,
     ActorRemoved,
 
     LightSourceInfluenceChanged,
-
+    //init
     GameManagerInitialized,
+    //ui
     MissionAdded,
     TaskStatusChanged,
 
+    //prob. obsolote?
     EntityDiscovered,
 
+    //camera manager
     PopupRequested,
     SetCameraTrackingTarget,
     JumpCameraTo,
+    CutToCameraTargeteeTargetShot,
+    ExitDynamicMode,
 
+    //targeting manager
+    EnterTargetingMode,
+    SetTargetee,
+    StepTargetIndex,
+    SetTargetIndex,
+    ExitTargetingMode,
+
+    //crosshair
+    ShowCrosshair,
+    HideCrosshair,
+
+    //grid
+    SetGridMap,
+    ToggleGridVisibility,
+
+    //game manager
     NewTurn,
     EndTurn,
+
+    //hotkeys
+    HotkeyPressed,
 }

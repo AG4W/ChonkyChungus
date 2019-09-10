@@ -9,9 +9,11 @@ public class PCGEntityData : MonoBehaviour
 
     [Header("Tile Stuff")]
     [SerializeField]bool _blocksTile;
+    [SerializeField]bool _blocksLineOfSight;
 
     public int sizeX { get { return _sizeX; } }
     public int sizeY { get { return _sizeY; } }
 
     public bool blocksTile { get { return _blocksTile; } }
+    public bool blocksLineOfSight { get { return _blocksLineOfSight; } }
 }

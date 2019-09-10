@@ -1,5 +1,6 @@
 ﻿using UnityEngine;
 
+using Action = ag4w.Actions.Action;
 using System.Collections.Generic;
 using System;
 
@@ -18,8 +19,8 @@ public class ActorData
 
     public string name { get; private set; }
 
-    public List<Item> inventory { get; private set; }
-    public List<Spell> spellbook { get; private set; }
+    public List<Item> inventory { get; private set; } = new List<Item>();
+    public List<Action> spells { get; private set; } = new List<Action>();
 
     public GameObject prefab { get; private set; }
 
@@ -37,7 +38,6 @@ public class ActorData
         InitializeStats(template);
         InitializeEquipment();
         InitializeInventory();
-        InitializeSpellbook();
     }
     public void Initialize(Actor actor)
     {
@@ -152,28 +152,22 @@ public class ActorData
     }
     void InitializeInventory()
     {
-        this.inventory = new List<Item>();
-
         GlobalEvents.Subscribe(GlobalEvent.NewTurn, (object[] args) =>
         {
             if(args[0] is Actor a && a == _actor)
                 TickItemTurnEffects();
         });
     }
-    void InitializeSpellbook()
-    {
-        this.spellbook = new List<Spell>();
-    }
 
-    public void AddSpell(Spell spell)
+    public void AddSpell(Action spell)
     {
-        spellbook.Add(spell);
-        GlobalEvents.Raise(GlobalEvent.ActorSpellbookChanged, _actor);
+        spells.Add(spell);
+        GlobalEvents.Raise(GlobalEvent.ActorSpellsChanged, _actor);
     }
-    public void RemoveSpell(Spell spell)
+    public void RemoveSpell(Action spell)
     {
-        spellbook.Remove(spell);
-        GlobalEvents.Raise(GlobalEvent.ActorSpellbookChanged, _actor);
+        spells.Remove(spell);
+        GlobalEvents.Raise(GlobalEvent.ActorSpellsChanged, _actor);
     }
 
     public void AddItem(Item item)

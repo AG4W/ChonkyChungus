@@ -27,6 +27,17 @@ public static class Extensions
     {
         return Array.IndexOf(array, item);
     }
+    public static int WrapStep(this int i, int min, int max, bool direction = true)
+    {
+        i += direction ? 1 : -1;
+
+        if (i < min)
+            i = max;
+        else if (i > max)
+            i = min;
+
+        return i;
+    }
 
     public static T Random<T>(this List<T> list)
     {
@@ -43,6 +54,15 @@ public static class Extensions
     public static void RemoveFirst<T>(this List<T> list)
     {
         list.RemoveAt(0);
+    }
+
+    public static float Smoothstep(this float value)
+    {
+        return value * value * value * value;
+    }
+    public static float CubicEaseOut(this float value)
+    {
+        return 1f + ((value -= 1f) * value * value);
     }
 
     public static ItemRarity GetRarityWeighted(this Random random, ItemRarity maxRarity = ItemRarity.Ancient)

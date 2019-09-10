@@ -1,12 +1,15 @@
 ﻿using UnityEngine;
 
-using System.IO;
 using System.Collections.Generic;
 using System.Linq;
+using System.IO;
+
+using ag4w.Actions;
 
 public static class ItemGenerator
 {
-    static ItemAction[] _actions;
+    static Action[] _itemActions;
+    static Action[] _spells;
 
     static DamageType[] _weaponDamageTypes;
     static DamageType _defaultDamageType;
@@ -17,7 +20,7 @@ public static class ItemGenerator
     {
         LoadDamageTypes();
         LoadPrefabCollections();
-        LoadItemActions();
+        LoadActions();
     }
 
     static void LoadDamageTypes()
@@ -35,14 +38,21 @@ public static class ItemGenerator
         for (int i = 0; i < _prefabs.Length; i++)
             _prefabs[i] = Resources.Load<PrefabCollection>("PrefabCollections/" + ((ItemType)i).ToString());
     }
-    static void LoadItemActions()
+    static void LoadActions()
     {
-        List<ItemAction> actions = new List<ItemAction>();
+        List<Action> actions = new List<Action>();
 
-        foreach (ItemActionTemplate iat in Resources.LoadAll<ItemActionTemplate>("Templates/Item Actions/"))
-            actions.Add(iat.Instantiate());
-    
-        _actions = actions.ToArray();
+        foreach (ActionTemplate at in Resources.LoadAll<ActionTemplate>("Templates/Item Actions/"))
+            actions.Add(at.Instantiate());
+
+        _itemActions = actions.ToArray();
+
+        actions.Clear();
+
+        foreach (ActionTemplate at in Resources.LoadAll<ActionTemplate>("Templates/Spells/"))
+            actions.Add(at.Instantiate());
+
+        _spells = actions.ToArray();
     }
 
     public static Item Get(ItemType itemType, ItemRarity rarity, DamageType type = null)
@@ -66,7 +76,7 @@ public static class ItemGenerator
                 i = new Item(name, "n/a", type, prefab, rarity);
                 break;
             case ItemType.LightSource:
-                i = new LightSource(name, "n/a", type, prefab, rarity, 15, 14);
+                i = new LightSource(name, "n/a", type, prefab, rarity, 20, 14);
                 break;
             default:
                 i = null;
@@ -74,12 +84,18 @@ public static class ItemGenerator
         }
 
         //setup default actions
-        i.actions.Add(_actions.First(a => a.header == "Attack"));
-        i.actions.Add(_actions.First(a => a.header == "Throw"));
-        i.actions.Add(_actions.First(a => a.header.Contains("Magic")));
-
-        i.newTurnEffects.Add(_actions.First(a => a.header.Contains("Vampiric")));
+        i.GetActions(ActionCategory.Attack).Add(_itemActions.First(a => a.categories.Contains(ActionCategory.Attack)));
 
         return i;
+    }
+
+    //spells
+    public static Action Get(string name)
+    {
+        return _spells.FirstOrDefault(s => s.header == name);
+    }
+    public static Action GetRandom()
+    {
+        return _spells.Random();
     }
 }

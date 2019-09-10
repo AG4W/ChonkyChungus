@@ -271,8 +271,8 @@ public static class RoomPopulator
 
         if(entity == null)
         {
-            if (data.blocksTile)
-                origin.SetStatus(TileStatus.Blocked);
+            origin.SetStatus(data.blocksTile ? TileStatus.Blocked : TileStatus.Walkable);
+            origin.SetBlocksLineOfSight(data.blocksLineOfSight);
         }
         else
             entity.SetPosition(origin);

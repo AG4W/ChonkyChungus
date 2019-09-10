@@ -1,7 +1,9 @@
 ﻿using UnityEngine;
+
 using PriorityQueue;
 
-using System.Collections.Generic;
+using System.Collections.Generic; 
+using System;
 
 public static class Pathfinder
 {
@@ -110,9 +112,111 @@ public static class Pathfinder
     /// <param name="target"></param>
     /// <param name="origin"></param>
     /// <returns></returns>
-    public static List<Tile> GetPath(Tile target, Tile origin, int maxDistance, bool ignoreOccupiedTiles)
+    public static List<Tile> GetPathExpensive(Tile target, Tile origin, int maxDistance, bool ignoreOccupiedTiles)
     {
         return GetPath(Dijkstra(new Dictionary<Tile, float>(), origin, maxDistance, ignoreOccupiedTiles), target, origin);
+    }
+
+    public static Dictionary<Tile, float> LineOfSight(Dictionary<Tile, float> map, Tile origin, int maxDistance)
+    {
+        map.Clear();
+
+        if (maxDistance == 0)
+            throw new Exception("Can't divide by zero, stupid");
+
+        int offset = maxDistance / 2;
+
+        for (int x = origin.x - offset; x <= origin.x + offset; x++)
+        {
+            for (int z = origin.z - offset; z <= origin.z + offset; z++)
+            {
+                if (x < 0 || x > Grid.size || z < 0 || z > Grid.size || Distance(origin, Grid.Get(x, z)) > maxDistance)
+                    continue;
+
+                List<Tile> tiles = Linecast(origin, Grid.Get(x, z), true);
+
+                for (int i = 0; i < tiles.Count; i++)
+                    if (!map.ContainsKey(tiles[i]))
+                        map.Add(tiles[i], 1f);
+            }
+        }
+
+        return map;
+    }
+
+    //Bresenham
+    public static List<Tile> Linecast(Tile start, Tile end, bool stopAtLineOfSightBlocker = false)
+    {
+        List<Tile> tiles = new List<Tile>();
+
+        int x = start.x;
+        int z = start.z;
+
+        int width = end.x - start.x;
+        int height = end.z - start.z;
+
+        Vector2 ds = Vector2.zero;
+        Vector2 de = Vector2.zero;
+
+        if (width < 0)
+        {
+            ds.x = -1;
+            de.x = -1;
+        }
+        else if (width > 0)
+        {
+            ds.x = 1;
+            de.x = 1;
+        }
+
+        if (height < 0)
+            ds.y = -1;
+        else if (height > 0)
+            ds.y = 1;
+
+        int longest = Mathf.Abs(width);
+        int shortest = Mathf.Abs(height);
+
+        if (longest <= shortest)
+        {
+            longest = Mathf.Abs(height);
+            shortest = Mathf.Abs(width);
+
+            if (height < 0)
+                de.y = -1;
+            else if (height > 0)
+                de.y = 1;
+
+            de.x = 0;
+        }
+
+        int numerator = longest >> 1;
+
+        for (int i = 0; i <= longest; i++)
+        {
+            if (x < 0 || x > Grid.size || z < 0 || z > Grid.size)
+                break;
+
+            if (stopAtLineOfSightBlocker && Grid.Get(x, z).blocksLineOfSight)
+                break;
+
+            tiles.Add(Grid.Get(x, z));
+            numerator += shortest;
+
+            if(!(numerator < longest))
+            {
+                numerator -= longest;
+                x += (int)ds.x;
+                z += (int)ds.y;
+            }
+            else
+            {
+                x += (int)de.x;
+                z += (int)de.y;
+            }
+        }
+
+        return tiles;
     }
 
     public static float Distance(Tile a, Tile b)

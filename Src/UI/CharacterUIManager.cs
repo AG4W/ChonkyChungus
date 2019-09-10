@@ -140,7 +140,7 @@ public class CharacterUIManager : TabBehaviour
             _statItems[i].transform.Find("value").GetComponent<Text>().text = Player.data.GetStat((StatType)i).GetValueFormatted();
     }
 
-    GameObject CreateValueHeaderItem(string header, string value, Color iconColor, Transform list, Action onEnter = null, Action onLeft = null, Action onScroll = null, Action onRight = null, Action onExit = null)
+    GameObject CreateValueHeaderItem(string header, string value, Color iconColor, Transform list, System.Action onEnter = null, System.Action onLeft = null, System.Action onScroll = null, System.Action onRight = null, System.Action onExit = null)
     {
         GameObject g = Instantiate(_headerValueItem, list);
 

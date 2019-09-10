@@ -1,6 +1,8 @@
 ﻿using UnityEngine;
 using UnityEngine.UI;
 
+using ag4w.Actions;
+
 public class ActionBarUIManager : MonoBehaviour
 {
     [SerializeField]Transform _left;
@@ -21,6 +23,15 @@ public class ActionBarUIManager : MonoBehaviour
 
         GlobalEvents.Subscribe(GlobalEvent.ActorEquipmentChanged, OnEquipmentChanged);
         GlobalEvents.Subscribe(GlobalEvent.ActorMapChanged, OnActorMapChanged);
+
+        GlobalEvents.Subscribe(GlobalEvent.ActorAdded, delegate(object[] args) {
+            if(args[0] is Actor a && a == Player.actor)
+                UpdateTargetsBar();
+        });
+        GlobalEvents.Subscribe(GlobalEvent.ActorAdded, (object[] args) => UpdateTargetsBar());
+
+        //fix this
+        //GlobalEvents.Subscribe(GlobalEvent.ActorTargetsChanged, (object[] args) => UpdateTargetsBar());
     }
 
     void OnEquipmentChanged(object[] args)
@@ -34,6 +45,8 @@ public class ActionBarUIManager : MonoBehaviour
             UpdateItemHeader(_left, _leftHeader, Player.data.GetEquipment(slot));
         else if (slot == EquipSlot.RightHand)
             UpdateItemHeader(_right, _rightHeader, Player.data.GetEquipment(slot));
+
+        UpdateTargetsBar();
     }
     void UpdateItemHeader(Transform root, Text header, Item item)
     {
@@ -55,21 +68,23 @@ public class ActionBarUIManager : MonoBehaviour
 
         //create item actions
         if(item != null)
-            for (int i = 0; i < item.actions.Count; i++)
-                CreateItemAction(item.actions[i], root);
+            for (int i = 0; i < item.GetActions(ActionCategory.Attack).Count; i++)
+                CreateItemAction(item, item.GetActions(ActionCategory.Attack)[i], root, i);
     }
-    void CreateItemAction(ItemAction action, Transform parent)
+    void CreateItemAction(Item item, Action action, Transform parent, int index)
     {
         GameObject g = Instantiate(_actionItem, parent);
 
-        g.transform.Find("icon").GetComponent<Image>().sprite = action.icon;
-        g.transform.Find("index").GetComponent<Text>().text = g.transform.GetSiblingIndex().ToString();
+        g.transform.Find("background").Find("icon").GetComponent<Image>().sprite = action.icon;
+        g.transform.Find("index").GetComponent<Text>().text = index.ToString();
+
         g.GetComponent<GenericPointerHandler>().Initialize(
-            () => Tooltip.Open(action.ToString()),
-            () => action.InvokeFunction(Player.actor),
-            null,
-            null,
-            () => Tooltip.Close());
+           () => Tooltip.Open(action.ToString()),
+           () => action.Activate(Player.actor, item),
+           null,
+           null,
+           () => Tooltip.Close());
+        g.GetComponent<GenericPointerHandler>().SetInteractable(action.Validate(Player.actor, item));
     }
 
     void OnActorMapChanged(object[] args)
@@ -90,10 +105,10 @@ public class ActionBarUIManager : MonoBehaviour
 
         //g.transform.Find("index").GetComponent<Text>().text = g.transform.GetSiblingIndex().ToString();
         g.GetComponent<GenericPointerHandler>().Initialize(
-            () => Tooltip.Open(target.name),
+            () => GlobalEvents.Raise(GlobalEvent.SetTargetIndex, Player.actor.visibleActors.IndexOf(target)),
             null,
-            () => GlobalEvents.Raise(GlobalEvent.JumpCameraTo, target.tile.position),
             null,
-            () => Tooltip.Close());
+            null,
+            null);
     }
 }

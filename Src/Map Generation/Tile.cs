@@ -16,6 +16,7 @@ public class Tile
     public Entity entity { get; private set; }
 
     public TileStatus status { get; private set; }
+
     public Vector3 position { get; private set; }
     public bool isTraversable
     {
@@ -24,6 +25,7 @@ public class Tile
             return this.status == TileStatus.Walkable && this.entity == null;
         }
     }
+    public bool blocksLineOfSight { get; private set; }
 
     public Tile(int x, int z, int i)
     {
@@ -47,6 +49,10 @@ public class Tile
     {
         this.entity = e;
     }
+    public void SetBlocksLineOfSight(bool blocksLineOfSight)
+    {
+        this.blocksLineOfSight = blocksLineOfSight;
+    }
 
     public void AddLuminosity(float value)
     {
@@ -66,7 +72,7 @@ public class Tile
     {
         return "Tile <color=blue>" + x + "</color>, <color=red>" + 0 + "</color>, <color=green>" + z + "</color>\n" +
             "Luminosity: " + (luminosity * 100f).ToString("#0.0") + "%\n" +
-            "Player Can See: " + (((luminosity * 100f) > Player.data.GetStat(StatType.SightThreshold).GetValue()) ? "<color=green>true</color>" : "<color=red>false</color>");
+            "Player Can See: " + (Pathfinder.Distance(this, Player.actor.tile) <= 5 || this.luminosity >= Player.actor.data.GetStat(StatType.SightThreshold).GetValue() ? "<color=green>true</color>" : "<color=red>false</color>");
 
         /*return
             "Tile <color=blue>" + x + "</color>, <color=red>" + 0 + "</color>, <color=green>" + z + "</color>\n" +

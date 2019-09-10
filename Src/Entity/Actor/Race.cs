@@ -17,7 +17,7 @@
         switch (type)
         {
             case RaceType.Human:
-                return 25;
+                return 15;
             case RaceType.Undead:
                 return 10;
             default:

@@ -1,6 +1,8 @@
 ﻿using UnityEngine;
 
-[System.Serializable]
+using MoonSharp.Interpreter;
+
+[System.Serializable][MoonSharpUserData]
 public class DamageType
 {
     [SerializeField]public string id;

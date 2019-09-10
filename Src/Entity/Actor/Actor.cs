@@ -21,6 +21,7 @@ public class Actor : Entity
     public ActorData data { get; private set; }
 
     public List<Actor> visibleActors { get; } = new List<Actor>();
+    public List<Actor> targets { get; private set; } = new List<Actor>();
 
     public bool hasTurn { get; protected set; }
 
@@ -40,14 +41,18 @@ public class Actor : Entity
 
         this.teamID = teamID;
 
-        GlobalEvents.Subscribe(GlobalEvent.LightSourceInfluenceChanged, (object[] args) => {
-            if (Pathfinder.Distance(base.tile, (args[0] as LightSource).holder.tile) <= data.GetStat(StatType.SightRange).GetValue())
-                UpdateLoSMap();
-        });
+        GlobalEvents.Subscribe(GlobalEvent.LightSourceInfluenceChanged, (object[] args) => UpdateLoSMap());
+        GlobalEvents.Subscribe(GlobalEvent.ActorMoveEnd, (object[] args) => UpdateLoSMap());
+
         GlobalEvents.Subscribe(GlobalEvent.ActorAdded, (object[] args) =>
         {
             if (args[0] is Actor a && a == this && this != Player.actor)
                 UpdateActorVisibility();
+        });
+        GlobalEvents.Subscribe(GlobalEvent.ActorRemoved, (object[] args) =>
+        {
+            if (args[0] is Actor a && this.visibleActors.Contains(a))
+                this.visibleActors.Remove(a);
         });
 
         Instantiate();
@@ -80,8 +85,13 @@ public class Actor : Entity
 
     public virtual void OnNewTurn()
     {
-        //reset stamina
+        //register at targeting manager
+        GlobalEvents.Raise(GlobalEvent.SetTargetee, this);
+        //reset vitals that reset
         data.GetVital(VitalType.Stamina).SetCurrent(data.GetVital(VitalType.Stamina).GetMax());
+
+        //update LoS
+        UpdateLoSMap();
 
         this.hasTurn = true;
 
@@ -145,17 +155,22 @@ public class Actor : Entity
     }
     IEnumerator SetAnimatorFloatOverTime(float from, float to, float duration)
     {
-        Animator _animator = this.GetComponentInChildren<Animator>();
+        Animator animator = this.GetComponentInChildren<Animator>();
 
-        float t = 0f;
-
-        while (t <= duration)
+        if (animator == null)
+            yield return new WaitForSeconds(duration);
+        else
         {
-            t += Time.fixedDeltaTime;
-        
-            _animator.SetFloat("speed", Mathf.Lerp(from, to, t / duration));
+            float t = 0f;
 
-            yield return new WaitForFixedUpdate();
+            while (t <= duration)
+            {
+                t += Time.fixedDeltaTime;
+
+                animator.SetFloat("speed", Mathf.Lerp(from, to, t / duration));
+
+                yield return new WaitForFixedUpdate();
+            }
         }
     }
 
@@ -198,6 +213,13 @@ public class Actor : Entity
 
     }
 
+    public void SetTargets(params Actor[] targets)
+    {
+        this.targets.Clear();
+        this.targets.AddRange(targets);
+        GlobalEvents.Raise(GlobalEvent.ActorTargetsChanged, this);
+    }
+
     void OnEquipmentChanged(EquipSlot slot)
     {
         _equipmentManager.OnEquipmentChanged(slot, data.GetEquipment(slot));
@@ -236,7 +258,13 @@ public class Actor : Entity
     }
     void UpdateLoSMap()
     {
-        SetMap(MapType.LineOfSight, Pathfinder.Dijkstra(this.GetMap(MapType.LineOfSight), this.tile, (int)this.data.GetStat(StatType.SightRange).GetValue(), false));
+        //all actors can see their immediate surroundings, aswell as further depending on luminosity levels
+        SetMap(MapType.LineOfSight,
+            Pathfinder.Dijkstra(
+            this.GetMap(MapType.LineOfSight),
+            this.tile,
+            (int)this.data.GetStat(StatType.SightRange).GetValue(),
+            false));
 
         foreach (Tile t in GetMap(MapType.LineOfSight).Keys)
         {
@@ -245,8 +273,7 @@ public class Actor : Entity
                 //if actor
                 if(t.entity is Actor a && a != this)
                 {
-                    //if we can see whatever is on that tile
-                    if(Pathfinder.Distance(t, this.tile) <= this.data.GetStat(StatType.SightRange).GetValue() / 5 || t.luminosity >= this.data.GetStat(StatType.SightThreshold).GetValue())
+                    if(Pathfinder.Distance(t, this.tile) <= 5 || t.luminosity >= this.data.GetStat(StatType.SightThreshold).GetValue())
                     {
                         if (this.visibleActors.IndexOf(a) == -1)
                         {
@@ -300,9 +327,4 @@ public class Actor : Entity
 
         GlobalEvents.Raise(GlobalEvent.ActorVisibilityChanged, this, _seenByCount > 0);
     }
-}
-public enum MapType
-{
-    Movement,
-    LineOfSight,
 }

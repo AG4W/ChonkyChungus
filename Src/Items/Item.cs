@@ -3,6 +3,8 @@
 using Object = UnityEngine.Object;
 using System.Collections.Generic;
 
+using ag4w.Actions;
+
 using MoonSharp.Interpreter;
 
 [MoonSharpUserData]
@@ -13,13 +15,15 @@ public class Item
 
     public DamageType damageType { get; private set; }
 
-    public List<ItemAction> pickupEffects { get; private set; } = new List<ItemAction>();
-    public List<ItemAction> equipEffects { get; private set; } = new List<ItemAction>();
-    public List<ItemAction> newTurnEffects { get; private set; } = new List<ItemAction>();
-    public List<ItemAction> unequipEffects { get; private set; } = new List<ItemAction>();
-    public List<ItemAction> droppedEffects { get; private set; } = new List<ItemAction>();
-
-    public List<ItemAction> actions { get; private set; } = new List<ItemAction>();
+    public List<Action>[] actions { get; private set; } = new List<Action>[]
+    {
+        new List<Action>(),
+        new List<Action>(),
+        new List<Action>(),
+        new List<Action>(),
+        new List<Action>(),
+        new List<Action>()
+    };
 
     public GameObject prefab { get; private set; }
     public ItemRarity rarity { get; private set; }
@@ -41,7 +45,7 @@ public class Item
         this.prefab = prefab;
         this.rarity = rarity;
     }
-    public Item(string name, string flavor, DamageType damageType, GameObject prefab, ItemRarity rarity, params ItemAction[] actions)
+    public Item(string name, string flavor, DamageType damageType, GameObject prefab, ItemRarity rarity, params Action[] actions)
     {
         this.name = name;
         this.flavor = flavor;
@@ -51,49 +55,54 @@ public class Item
         this.prefab = prefab;
         this.rarity = rarity;
 
-        this.actions.AddRange(actions);
+        this.GetActions(ActionCategory.Attack).AddRange(actions);
     }
 
     public virtual void OnPickUp(Entity holder)
     {
         this.holder = holder;
 
-        for (int i = 0; i < pickupEffects.Count; i++)
-            if (pickupEffects[i].InvokeFunction(ItemAction.Function.Validate, this.holder))
-                pickupEffects[i].InvokeFunction(this.holder);
+        foreach (Action ia in this.GetActions(ActionCategory.Pickup))
+            if (ia.Validate(this.holder, this))
+                ia.Activate(this.holder, this);
     }
     public virtual void OnEquip()
     {
         this.isEquipped = true;
 
-        for (int i = 0; i < equipEffects.Count; i++)
-            if (equipEffects[i].InvokeFunction(ItemAction.Function.Validate, this.holder))
-                equipEffects[i].InvokeFunction(this.holder);
+        foreach (Action ia in this.GetActions(ActionCategory.Equip))
+            if (ia.Validate(this.holder, this))
+                ia.Activate(this.holder, this);
     }
     public virtual void OnNewTurn()
     {
-        for (int i = 0; i < newTurnEffects.Count; i++)
-            if (newTurnEffects[i].InvokeFunction(ItemAction.Function.Validate, this.holder))
-                newTurnEffects[i].InvokeFunction(this.holder);
+        foreach (Action ia in this.GetActions(ActionCategory.NewTurn))
+            if (ia.Validate(this.holder, this))
+                ia.Activate(this.holder, this);
     }
     public virtual void OnUnequip()
     {
         this.isEquipped = false;
-    
-        for (int i = 0; i < unequipEffects.Count; i++)
-            if (unequipEffects[i].InvokeFunction(ItemAction.Function.Validate, this.holder))
-                unequipEffects[i].InvokeFunction(this.holder);
+
+        foreach (Action ia in this.GetActions(ActionCategory.Unequip))
+            if (ia.Validate(this.holder, this))
+                ia.Activate(this.holder, this);
     }
     public virtual void OnDropped()
     {
         if(this.isEquipped)
             this.OnUnequip();
-    
-        for (int i = 0; i < droppedEffects.Count; i++)
-            if (droppedEffects[i].InvokeFunction(ItemAction.Function.Validate, this.holder))
-                droppedEffects[i].InvokeFunction(this.holder);
+
+        foreach (Action ia in this.GetActions(ActionCategory.Drop))
+            if (ia.Validate(this.holder, this))
+                ia.Activate(this.holder, this);
 
         this.holder = null;
+    }
+
+    public List<Action> GetActions(ActionCategory ec)
+    {
+        return this.actions[(int)ec];
     }
 
     public virtual GameObject Instantiate()
@@ -115,11 +124,18 @@ public class Item
         string s = "<color=#" + ColorUtility.ToHtmlStringRGBA(GetColor()) + ">" + name + "\n" +
             rarity.ToString() + "</color>\n\n" +
             (damageType.requiresBothHands ? "<color=orange>Requires Both Hands</color>\n\n" : "") +
-            "Damage: D" + damageType.damage + "\n\nActions:\n";
+            "Damage: D" + damageType.damage;
 
-        for (int i = 0; i < this.actions.Count; i++)
-            s += this.actions[i].ToString() + (i < this.actions.Count - 1 ? "\n\n" : "");
+        for (int i = 0; i < this.actions.Length; i++)
+        {
+            if(this.actions[i].Count > 0)
+            {
+                s += "\n\n" + (ActionCategory)i + ":\n";
 
+                for (int j = 0; j < this.actions[i].Count; j++)
+                    s += this.actions[i][j].ToString() + (i < this.actions[i].Count - 1 ? "\n\n" : "");
+            }
+        }
 
         return s;
     }
@@ -140,4 +156,14 @@ public class Item
                 return Color.magenta;
         }
     }
+}
+public enum ActionCategory
+{
+    Pickup,
+    Equip,
+    NewTurn,
+    Unequip,
+    Drop,
+    Attack,
+    Spell
 }
