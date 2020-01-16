@@ -48,10 +48,8 @@ public class Attribute
                 return Color.red;
             case AttributeType.Vitality:
                 return new Color(1f, .5f, 0f);
-            case AttributeType.Quickness:
+            case AttributeType.Movement:
                 return Color.green;
-            case AttributeType.Accuracy:
-                return Color.cyan;
             case AttributeType.Willpower:
                 return Color.blue;
             default:
@@ -63,7 +61,6 @@ public enum AttributeType
 {
     Strength,
     Vitality,
-    Quickness,
-    Accuracy,
+    Movement,
     Willpower,
 }

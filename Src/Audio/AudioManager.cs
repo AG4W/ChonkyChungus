@@ -16,7 +16,7 @@ public class AudioManager : MonoBehaviour
     {
         instance = this;
 
-        GlobalEvents.Subscribe(GlobalEvent.GameManagerInitialized, OnGameInitialized);
+        GlobalEvents.Subscribe(GlobalEvent.PCGComplete, OnGameInitialized);
     }
 
     void OnGameInitialized(object[] args)

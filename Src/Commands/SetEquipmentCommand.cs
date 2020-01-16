@@ -1,15 +1,13 @@
 ﻿public class SetEquipmentCommand : ActorCommand
 {
-    EquipSlot _slot;
-    Item _item;
+    Equipable _equipable;
 
-    public SetEquipmentCommand(Actor actor, EquipSlot slot, Item item) : base(actor)
+    public SetEquipmentCommand(Actor actor, Equipable equipable) : base(actor)
     {
-        _slot = slot;
-        _item = item;
+        _equipable = equipable;
     }
     public override void Execute()
     {
-        base.actor.data.SetEquipment(_slot, _item);
+        base.actor.data.SetEquipment(_equipable);
     }
 }

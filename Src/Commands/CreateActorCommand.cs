@@ -13,7 +13,7 @@ public class CreateActorCommand : Command
         //look upon me and despair
         Actor a = new GameObject("player actor", typeof(Actor)).GetComponent<Actor>();
         a.Initialize(Resources.Load<ActorTemplate>("ActorTemplates/player").Instantiate(), 0);
-        a.SetPosition(_position ?? Grid.GetRandom(true));
+        a.SetPosition(_position ?? Grid.GetRandom(TileStatus.Vacant));
 
         GlobalEvents.Raise(GlobalEvent.ActorAdded, a);
     }

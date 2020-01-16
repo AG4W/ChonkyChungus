@@ -31,22 +31,20 @@ public static class GridManager
 
         GlobalEvents.Subscribe(GlobalEvent.ActorMapChanged, (object[] args) =>
         {
-            if ((Actor)args[0] == Player.actor && (MapType)args[1] == _current)
+            if ((Actor)args[0] == Player.selectedActor && (MapType)args[1] == _current)
                 Repaint();
+        });
+        GlobalEvents.Subscribe(GlobalEvent.ActorSelected, (object[] args) => 
+        {
+            Repaint();
         });
 
         GlobalEvents.Subscribe(GlobalEvent.NewTurn, (object[] args) =>
         {
-            if ((Actor)args[0] != Player.actor)
-                return;
-
-            _root.SetActive(_isHidden);
+            _root.SetActive((int)args[0] == 0 ? _isHidden : false);
         });
         GlobalEvents.Subscribe(GlobalEvent.EndTurn, (object[] args) =>
         {
-            if ((Actor)args[0] != Player.actor)
-                return;
-        
             _root.SetActive(false);
         });
 
@@ -84,12 +82,12 @@ public static class GridManager
             case MapType.Movement:
                 foreach(Tile tile in _map.Keys)
                 {
-                    if (Pathfinder.Distance(tile, Player.actor.tile) > Player.actor.data.GetStat(StatType.SprintRange).GetValue())
+                    if (Pathfinder.Distance(tile, Player.selectedActor.tile) > Player.selectedActor.data.GetStat(StatType.SprintRange).GetValue())
                         continue;
 
                     GameObject t = Object.Instantiate(_prefab, tile.position, Quaternion.identity, _root.transform);
                 
-                    c.a = Pathfinder.Distance(tile, Player.actor.tile) <= Player.actor.data.GetStat(StatType.WalkRange).GetValue() ? .5f : .25f;
+                    c.a = Pathfinder.Distance(tile, Player.selectedActor.tile) <= Player.selectedActor.data.GetStat(StatType.WalkRange).GetValue() ? .5f : .25f;
 
                     mr = t.GetComponentInChildren<MeshRenderer>();
                     mr.material.SetColor("_UnlitColor", c);
@@ -100,11 +98,11 @@ public static class GridManager
             case MapType.LineOfSight:
                 foreach(Tile tile in _map.Keys)
                 {
-                    if(Pathfinder.Distance(tile, Player.actor.tile) <= 5 || tile.luminosity >= Player.actor.data.GetStat(StatType.SightThreshold).GetValue())
+                    if(Pathfinder.Distance(tile, Player.selectedActor.tile) <= 5 || tile.luminosity >= Player.selectedActor.data.GetStat(StatType.SightThreshold).GetValue())
                     {
                         GameObject t = Object.Instantiate(_prefab, tile.position, Quaternion.identity, _root.transform);
 
-                        c.a = Pathfinder.Distance(tile, Player.actor.tile) <= 5 ? 1f : tile.luminosity;
+                        c.a = Pathfinder.Distance(tile, Player.selectedActor.tile) <= 5 ? 1f : tile.luminosity;
 
                         mr = t.GetComponentInChildren<MeshRenderer>();
                         mr.material.SetColor("_UnlitColor", c);
@@ -118,11 +116,11 @@ public static class GridManager
     static void UpdateMap()
     {
         if(_current == MapType.LineOfSight)
-            _map = Pathfinder.LineOfSight(_map, Player.actor.tile, (int)Player.actor.data.GetStat(StatType.SightRange).GetValue());
+            _map = Pathfinder.LineOfSight(_map, Player.selectedActor.tile, (int)Player.selectedActor.data.GetStat(StatType.SightRange).GetValue());
         else
-            _map = Pathfinder.Dijkstra(_map, Player.actor.tile, _mapRange, _current == MapType.Movement);
+            _map = Pathfinder.Dijkstra(_map, Player.selectedActor.tile, _mapRange, _current == MapType.Movement ? new TileStatus[] { TileStatus.Blocked, TileStatus.Occupied } : new TileStatus[] { TileStatus.Blocked });
     }
-
+    
     static void Toggle()
     {
         _isHidden = !_isHidden;

@@ -1,12 +1,12 @@
 ﻿using UnityEngine;
 
+using System.Collections.Generic;
+
 using MoonSharp.Interpreter;
 
 [MoonSharpUserData]
 public class Tile
 {
-    GameObject _prefab;
-
     public int x { get; private set; }
     public int z { get; private set; }
     public int index { get; private set; }
@@ -14,17 +14,11 @@ public class Tile
     public float luminosity { get; private set; }
 
     public Entity entity { get; private set; }
+    public List<TileEffect> effects { get; private set; } = new List<TileEffect>();
 
     public TileStatus status { get; private set; }
 
     public Vector3 position { get; private set; }
-    public bool isTraversable
-    {
-        get
-        {
-            return this.status == TileStatus.Walkable && this.entity == null;
-        }
-    }
     public bool blocksLineOfSight { get; private set; }
 
     public Tile(int x, int z, int i)
@@ -33,8 +27,10 @@ public class Tile
         this.z = z;
 
         this.index = i;
-        this.status = TileStatus.Blocked;
+        this.status = TileStatus.Occupied;
         this.position = new Vector3(x, 0, z);
+
+        GlobalEvents.Subscribe(GlobalEvent.NewTurn, (object[] args) => TickEffects());
     }
 
     public void SetIndex(int i)
@@ -63,16 +59,56 @@ public class Tile
         this.luminosity = Mathf.Clamp01(this.luminosity - value);
     }
 
-    public GameObject Instantiate(GameObject prefab)
+    public void AddEffect()
     {
-        return _prefab = Object.Instantiate(prefab, this.position, Quaternion.identity, null);
+        AddEffect(Resources.Load<TileEffectTemplate>("Templates/Tile Effects/Fire").Instantiate());
+    }
+    public void AddEffect(TileEffect effect)
+    {
+        this.effects.Add(effect);
+
+        effect.SetTile(this);
+        effect.OnComplete += OnEffectComplete;
+        effect.Instantiate(this.position, Quaternion.identity, null);
+    }
+
+    void TickEffects()
+    {
+        for (int i = 0; i < this.effects.Count; i++)
+            this.effects[i].Tick();
+    }
+
+    void OnEffectComplete(TileEffect te)
+    {
+        this.effects.Remove(te);
+
+        te.SetTile(null);
+        te.OnComplete -= OnEffectComplete;
+    }
+
+    public List<Tile> GetNeighbours()
+    {
+        List<Tile> neighbours = new List<Tile>();
+
+        for (int xAround = x - 1; xAround <= x + 1; xAround++)
+        {
+            for (int zAround = z - 1; zAround <= z + 1; zAround++)
+            {
+                if (xAround < 0 || xAround > Grid.size || zAround < 0 || zAround > Grid.size || (xAround == x && zAround == z))
+                    continue;
+                else
+                    neighbours.Add(Grid.Get(xAround, zAround));
+            }
+        }
+
+        return neighbours;
     }
 
     public override string ToString()
     {
         return "Tile <color=blue>" + x + "</color>, <color=red>" + 0 + "</color>, <color=green>" + z + "</color>\n" +
             "Luminosity: " + (luminosity * 100f).ToString("#0.0") + "%\n" +
-            "Player Can See: " + (Pathfinder.Distance(this, Player.actor.tile) <= 5 || this.luminosity >= Player.actor.data.GetStat(StatType.SightThreshold).GetValue() ? "<color=green>true</color>" : "<color=red>false</color>");
+            "Player Can See: " + (Pathfinder.Distance(this, Player.selectedActor.tile) <= 5 || this.luminosity >= Player.selectedActor.data.GetStat(StatType.SightThreshold).GetValue() ? "<color=green>true</color>" : "<color=red>false</color>");
 
         /*return
             "Tile <color=blue>" + x + "</color>, <color=red>" + 0 + "</color>, <color=green>" + z + "</color>\n" +
@@ -87,5 +123,6 @@ public class Tile
 public enum TileStatus
 {
     Blocked,
-    Walkable
+    Occupied,
+    Vacant
 }

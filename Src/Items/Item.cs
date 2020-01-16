@@ -1,6 +1,5 @@
 ﻿using UnityEngine;
 
-using Object = UnityEngine.Object;
 using System.Collections.Generic;
 
 using ag4w.Actions;
@@ -13,8 +12,6 @@ public class Item
     public string name { get; private set; }
     public string flavor { get; private set; }
 
-    public DamageType damageType { get; private set; }
-
     public List<Action>[] actions { get; private set; } = new List<Action>[]
     {
         new List<Action>(),
@@ -25,7 +22,6 @@ public class Item
         new List<Action>()
     };
 
-    public GameObject prefab { get; private set; }
     public ItemRarity rarity { get; private set; }
 
     public Entity holder { get; private set; }
@@ -35,27 +31,11 @@ public class Item
     //IT'S FUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUCJED
     //IM FUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUCJED
     //FUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUCJED
-    public Item(string name, string flavor, DamageType damageType, GameObject prefab, ItemRarity rarity)
+    public Item(string name, string flavor, ItemRarity rarity)
     {
         this.name = name;
         this.flavor = flavor;
-
-        this.damageType = damageType;
-
-        this.prefab = prefab;
         this.rarity = rarity;
-    }
-    public Item(string name, string flavor, DamageType damageType, GameObject prefab, ItemRarity rarity, params Action[] actions)
-    {
-        this.name = name;
-        this.flavor = flavor;
-
-        this.damageType = damageType;
-
-        this.prefab = prefab;
-        this.rarity = rarity;
-
-        this.GetActions(ActionCategory.Attack).AddRange(actions);
     }
 
     public virtual void OnPickUp(Entity holder)
@@ -105,35 +85,31 @@ public class Item
         return this.actions[(int)ec];
     }
 
-    public virtual GameObject Instantiate()
+    public virtual string ToTooltip()
     {
-        return Object.Instantiate(prefab);
+        return this.BaseInfoToString() + this.ActionsToString();
     }
 
     public string NameToString()
     {
         return "<color=#" + ColorUtility.ToHtmlStringRGBA(GetColor()) + ">" + name + "</color>";
     }
-
-    public override string ToString()
+    public string BaseInfoToString()
     {
-        return name + "\n" + flavor + "\n" + damageType.ToString();
+        return "<color=#" + ColorUtility.ToHtmlStringRGBA(GetColor()) + ">" + name + "\n" + rarity.ToString() + "</color>";
     }
-    public virtual string ToTooltip()
+    public string ActionsToString()
     {
-        string s = "<color=#" + ColorUtility.ToHtmlStringRGBA(GetColor()) + ">" + name + "\n" +
-            rarity.ToString() + "</color>\n\n" +
-            (damageType.requiresBothHands ? "<color=orange>Requires Both Hands</color>\n\n" : "") +
-            "Damage: D" + damageType.damage;
+        string s = "";
 
         for (int i = 0; i < this.actions.Length; i++)
         {
-            if(this.actions[i].Count > 0)
+            if (this.actions[i].Count > 0)
             {
                 s += "\n\n" + (ActionCategory)i + ":\n";
 
                 for (int j = 0; j < this.actions[i].Count; j++)
-                    s += this.actions[i][j].ToString() + (i < this.actions[i].Count - 1 ? "\n\n" : "");
+                    s += this.actions[i][j].ToString() + (j < this.actions[i].Count - 1 ? "\n\n" : "");
             }
         }
 
@@ -164,6 +140,6 @@ public enum ActionCategory
     NewTurn,
     Unequip,
     Drop,
-    Attack,
+    Activateable,
     Spell
 }

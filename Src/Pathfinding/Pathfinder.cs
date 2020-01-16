@@ -2,12 +2,16 @@
 
 using PriorityQueue;
 
-using System.Collections.Generic; 
+using System.Collections.Generic;
+using System.Linq;
 using System;
 
+using MoonSharp.Interpreter;
+
+[MoonSharpUserData]
 public static class Pathfinder
 {
-    public static Dictionary<Tile, float> Dijkstra(Dictionary<Tile, float> map, Tile origin, int maxDistance, bool ignoreOccupiedTiles)
+    public static Dictionary<Tile, float> Dijkstra(Dictionary<Tile, float> map, Tile origin, int maxDistance, params TileStatus[] ignoreFilter)
     {
         map.Clear();
 
@@ -34,7 +38,7 @@ public static class Pathfinder
 
                     Tile c = Grid.Get(xAround, zAround);
 
-                    if (closed.Contains(c) || (ignoreOccupiedTiles ? !c.isTraversable : c.status != TileStatus.Walkable))
+                    if (closed.Contains(c) || ignoreFilter.Contains(c.status))
                         continue;
 
                     float pd = cd + Distance(t, c);
@@ -112,9 +116,9 @@ public static class Pathfinder
     /// <param name="target"></param>
     /// <param name="origin"></param>
     /// <returns></returns>
-    public static List<Tile> GetPathExpensive(Tile target, Tile origin, int maxDistance, bool ignoreOccupiedTiles)
+    public static List<Tile> GetPathExpensive(Tile target, Tile origin, int maxDistance, params TileStatus[] ignoreFilter)
     {
-        return GetPath(Dijkstra(new Dictionary<Tile, float>(), origin, maxDistance, ignoreOccupiedTiles), target, origin);
+        return GetPath(Dijkstra(new Dictionary<Tile, float>(), origin, maxDistance, ignoreFilter), target, origin);
     }
 
     public static Dictionary<Tile, float> LineOfSight(Dictionary<Tile, float> map, Tile origin, int maxDistance)
@@ -130,10 +134,10 @@ public static class Pathfinder
         {
             for (int z = origin.z - offset; z <= origin.z + offset; z++)
             {
-                if (x < 0 || x > Grid.size || z < 0 || z > Grid.size || Distance(origin, Grid.Get(x, z)) > maxDistance)
+                if (x < 0 || x > Grid.size || z < 0 || z > Grid.size)
                     continue;
 
-                List<Tile> tiles = Linecast(origin, Grid.Get(x, z), true);
+                List<Tile> tiles = Linecast(origin, Grid.Get(x, z), maxDistance, true);
 
                 for (int i = 0; i < tiles.Count; i++)
                     if (!map.ContainsKey(tiles[i]))
@@ -145,10 +149,10 @@ public static class Pathfinder
     }
 
     //Bresenham
-    public static List<Tile> Linecast(Tile start, Tile end, bool stopAtLineOfSightBlocker = false)
+    public static List<Tile> Linecast(Tile start, Tile end, int maxDistance = 0, bool stopAtLineOfSightBlocker = false)
     {
         List<Tile> tiles = new List<Tile>();
-
+    
         int x = start.x;
         int z = start.z;
 
@@ -216,12 +220,77 @@ public static class Pathfinder
             }
         }
 
+        if(maxDistance > 0)
+        {
+            while (tiles.Count > maxDistance)
+                tiles.Remove(tiles.Last());
+        }
+
+        return tiles;
+    }
+    public static List<Tile> LinecastFromCaster(Entity caster, int maxDistance)
+    {
+        int x = (int)caster.tile.position.x;
+        int z = (int)caster.tile.position.z;
+
+        Vector3 direction = caster.transform.eulerAngles.normalized;
+        Tile end = null;
+
+        //find last valid end tile
+        for (int i = 1; i <= maxDistance; i++)
+        {
+            x = (int)(caster.tile.position.x + (direction.x * i));
+            z = (int)(caster.tile.position.z + (direction.z * i));
+
+            if (x < 0 || x > Grid.size || z < 0 || z > Grid.size || Grid.Get(x, z).status == TileStatus.Occupied)
+                break;
+
+            end = Grid.Get(x, z);
+        }
+
+        return Linecast(caster.tile, end);
+    }
+
+    public static List<Tile> SquareAreaFromTile(Tile center, int radius)
+    {
+        List<Tile> tiles = new List<Tile>();
+
+        for (int x = center.x - radius; x <= center.x + radius; x++)
+        {
+            for (int z = center.z - radius; z <= center.z + radius; z++)
+            {
+                if (x < 0 || x > Grid.size || z < 0 || z > Grid.size)
+                    continue;
+
+                tiles.Add(Grid.Get(x, z));
+            }
+        }
+
+        return tiles;
+    }
+    public static List<Tile> CircleAreaFromTile(Tile center, int radius)
+    {
+        List<Tile> tiles = new List<Tile>();
+
+        for (int x = center.x - radius; x <= center.x + radius; x++)
+        {
+            for (int z = center.z - radius; z <= center.z + radius; z++)
+            {
+                if (x < 0 || x > Grid.size || z < 0 || z > Grid.size || Distance(center, Grid.Get(x, z)) > radius)
+                    continue;
+
+                tiles.Add(Grid.Get(x, z));
+            }
+        }
+
         return tiles;
     }
 
-    public static float Distance(Tile a, Tile b)
+    public static int Distance(Tile a, Tile b)
     {
-        return (a.position - b.position).magnitude;
-        //return Mathf.Max(Mathf.Abs(a.x - b.x), Mathf.Abs(a.z - b.z));
+        //return (a.position - b.position).magnitude;
+        //Debug.Log("Distance is: " + (Mathf.Abs(b.x - a.x) + Mathf.Abs(b.z - a.z)));
+
+        return (Mathf.Abs(b.x - a.x) + Mathf.Abs(b.z - a.z));
     }
 }

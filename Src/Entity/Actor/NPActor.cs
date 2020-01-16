@@ -1,7 +1,6 @@
 ﻿using UnityEngine;
 
 using System.Collections.Generic;
-using System.Collections;
 using System.Linq;
 
 public class NPActor : Actor
@@ -11,34 +10,16 @@ public class NPActor : Actor
     public override void OnNewTurn()
     {
         base.OnNewTurn();
-        StartCoroutine(CalculateMoveDelayed());
     }
 
-    void CalculateMove()
+    public void PlotMove()
     {
-        Actor p = base.visibleActors.FirstOrDefault();
+        Debug.Log("NPActor plotting move...");
 
-        if (p == null)
-            new EndTurnCommand(this);
-        //do I need to move or am I in range?
-        //else if (base.CanAttack(p, false))
-        //{
-        //    new AttackCommand(this, p);
-        //    new EndTurnCommand(this);
-        //}
-        else
-        {
-            new MoveCommand(this, Pathfinder.GetPath(base.GetMap(MapType.Movement), base.GetMap(MapType.Movement).Keys.OrderBy(t => Pathfinder.Distance(p.tile, t)).First(), this.tile));
-            new EndTurnCommand(this);
-        }
-    }
-    IEnumerator CalculateMoveDelayed()
-    {
-        yield return new WaitForSeconds(.1f);
+        //pick random player actor
+        Actor pa = GameManager.GetRandom(0);
+        Tile t = this.GetMap(MapType.Movement).Keys.OrderBy(tile => Pathfinder.Distance(tile, pa.tile)).FirstOrDefault();
 
-        while (base.isBusy)
-            yield return null;
-
-        CalculateMove();
+        new MoveCommand(this, Pathfinder.GetPath(base.GetMap(MapType.Movement), t, this.tile));
     }
 }

@@ -2,10 +2,7 @@
 {
     Onehanded,
     Twohanded,
-    Short,
     Polearm,
     Bow,
-    Shield,
     Torch,
-    Unarmed,
 }

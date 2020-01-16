@@ -3,7 +3,7 @@
     public int width { get; private set; }
     public int height { get; private set; }
 
-    public SquareRoom(int ox, int oz, int index, int w, int h, RoomType type) : base(ox, oz, index, type)
+    public SquareRoom(int ox, int oz, int index, int w, int h, RegionProfile profile) : base(ox, oz, index, profile)
     {
         this.width = w;
         this.height = h;
@@ -18,7 +18,7 @@
                 Tile t = Grid.Get(x, z);
 
                 t.SetIndex(base.index);
-                t.SetStatus(TileStatus.Walkable);
+                t.SetStatus(TileStatus.Vacant);
                 base.tiles.Add(t);
 
                 if (x == base.originX || x == base.originX + w || z == base.originZ || z == base.originZ + h)

@@ -10,6 +10,7 @@
     public override void Execute()
     {
         base.actor.data.GetVital(VitalType.Stamina).Update(-_entity.interactCost);
+        base.actor.OnInteract();
 
         _entity.Interact(base.actor);
     }

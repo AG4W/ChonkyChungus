@@ -4,7 +4,7 @@ public class CircleRoom : Room
 {
     public int radius { get; private set; }
 
-    public CircleRoom(int ox, int oz, int index, int r, RoomType type) : base(ox, oz, index, type)
+    public CircleRoom(int ox, int oz, int index, int r, RegionProfile profile) : base(ox, oz, index, profile)
     {
         this.radius = r;
 

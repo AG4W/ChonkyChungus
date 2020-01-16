@@ -26,9 +26,9 @@ public class ContainerEntity : Entity
             GlobalEvents.Raise(GlobalEvent.PopupRequested, this.transform.position + Vector3.up, "It's empty!");
         else
         {
-            for (int i = 0; i < _items.Length; i++)
-                if (_items[i] != null)
-                    new AddItemCommand(interactee, _items[i]);
+            //for (int i = 0; i < _items.Length; i++)
+            //    if (_items[i] != null)
+            //        new AddItemCommand(interactee, _items[i]);
 
             _isEmpty = true;
         }

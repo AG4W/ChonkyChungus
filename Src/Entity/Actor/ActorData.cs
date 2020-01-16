@@ -2,6 +2,7 @@
 
 using Action = ag4w.Actions.Action;
 using System.Collections.Generic;
+using System.Linq;
 using System;
 
 using MoonSharp.Interpreter;
@@ -13,19 +14,20 @@ public class ActorData
     Attribute[] _attributes;
     Vital[] _vitals;
 
-    Item[] _equipment;
-
-    Actor _actor;
+    Equipable[] _equipment;
+    Item[] _inventory;
 
     public string name { get; private set; }
+    public int inventorySize { get { return _inventory.Length; } }
 
-    public List<Item> inventory { get; private set; } = new List<Item>();
     public List<Action> spells { get; private set; } = new List<Action>();
 
     public GameObject prefab { get; private set; }
 
     public AudioClip[] damageSFX { get; private set; }
     public AudioClip[] deathSFX { get; private set; }
+
+    public RaceAnimationSet raceAnimationSet { get; private set; }
 
     public ActorData(string name, ActorTemplate template)
     {
@@ -35,13 +37,11 @@ public class ActorData
         this.damageSFX = template.damageSFX;
         this.deathSFX = template.deathSFX;
 
+        this.raceAnimationSet = template.raceAnimationSet;
+
         InitializeStats(template);
         InitializeEquipment();
         InitializeInventory();
-    }
-    public void Initialize(Actor actor)
-    {
-        _actor = actor;
     }
 
     void InitializeStats(ActorTemplate template)
@@ -50,11 +50,11 @@ public class ActorData
         _stats = new Stat[] {
             //misc
             new Stat(StatType.SightRange, StatCategory.Misc,
-                () => { return Race.GetBaseSightRange(template.race); },
-                () => { return "Base: " + Race.GetBaseSightRange(template.race); }),
+                () => { return template.sightRange; },
+                () => { return "Base: " + template.sightRange; }),
             new Stat(StatType.SightThreshold, StatCategory.Misc,
-                () => { return Race.GetBaseLuminosityThreshold(template.race); },
-                () => { return "Base: " + Race.GetBaseLuminosityThreshold(template.race); }),
+                () => { return template.sightThreshold; },
+                () => { return "Base: " + template.sightThreshold; }),
             new Stat(StatType.WalkRange, StatCategory.Misc,
                 () => { return GetVital(VitalType.Stamina).current; },
                 () => { return "Stamina: " + GetVital(VitalType.Stamina).current; }),
@@ -66,40 +66,29 @@ public class ActorData
         //attributes
         _attributes = new Attribute[]
         {
-            new Attribute(AttributeType.Strength, template.GetModifier(AttributeType.Strength) + template.strength,
+            new Attribute(AttributeType.Strength, template.strength,
             () => {
                 return "<i><color=grey>Physical strength, it governs your damage values and carry weight.</color></i>\n\n" +
                     "Assigned: +" + GetAttribute(AttributeType.Strength).assigned + " / 25\n\n" +
-                    template.race.ToString() + ": +" + template.GetModifier(AttributeType.Strength) + "\n" +
-                    "Birth: +" + template.strength;
+                    template.race.ToString() + ": +" + template.strength;
             }),
-            new Attribute(AttributeType.Vitality, template.GetModifier(AttributeType.Vitality) + template.vitality,
+            new Attribute(AttributeType.Vitality, template.vitality,
             () => {
                 return "<i><color=grey>Physical conditioning and fitness, it governs your health and stamina.</color></i>\n\n" +
                     "Assigned: +" + GetAttribute(AttributeType.Vitality).assigned + " / 25\n\n" +
-                    template.race.ToString() + ": +" + template.GetModifier(AttributeType.Vitality) + "\n" +
-                    "Birth: +" + template.vitality;
+                    template.race.ToString() + ": +" + template.vitality;
             }),
-            new Attribute(AttributeType.Quickness, template.GetModifier(AttributeType.Quickness) + template.quickness,
+            new Attribute(AttributeType.Movement, template.movement,
             () => {
-                return "<i><color=grey>Reflexes, reactions and subconscious instincts, it governs parry, dodge and ripose chances.</color></i>\n\n" +
-                    "Assigned: +" + GetAttribute(AttributeType.Quickness).assigned + " / 25\n\n" +
-                    template.race.ToString() + ": +" + template.GetModifier(AttributeType.Quickness) + "\n" +
-                    "Birth: +" + template.quickness;
+                return "<i><color=grey>Reflexes, reactions and subconscious instincts, it governs parry, dodge and riposte chances.</color></i>\n\n" +
+                    "Assigned: +" + GetAttribute(AttributeType.Movement).assigned + " / 25\n\n" +
+                    template.race.ToString() + ": +" + template.movement;
             }),
-            new Attribute(AttributeType.Accuracy, template.GetModifier(AttributeType.Accuracy) + template.accuracy,
-            () => {
-                return "<i><color=grey>Hand-to-eye coordination and precision, governs hit and critical chances.</color></i>\n\n" +
-                    "Assigned: +" + GetAttribute(AttributeType.Accuracy).assigned + " / 25\n\n" +
-                    template.race.ToString() + ": +" + template.GetModifier(AttributeType.Accuracy) + "\n" +
-                    "Birth: +" + template.accuracy;
-            }),
-            new Attribute(AttributeType.Willpower, template.GetModifier(AttributeType.Willpower) + template.willpower,
+            new Attribute(AttributeType.Willpower, template.willpower,
             () => {
                 return "<i><color=grey>Mental fortitude and conditioning, governs your resistance to corruption and spell damage.</color></i>\n\n" +
                     "Assigned: +" + GetAttribute(AttributeType.Willpower).assigned + " / 25\n\n" +
-                    template.race.ToString() + ": +" + template.GetModifier(AttributeType.Willpower) + "\n" +
-                    "Birth: +" + template.willpower;
+                    template.race.ToString() + ": +" + template.willpower;
             })
         };
 
@@ -107,7 +96,7 @@ public class ActorData
             _attributes[i].OnAttributeChanged += (AttributeType at) =>
             {
                 for (int a = 0; a < _vitals.Length; a++)
-                    OnVitalChanged((VitalType)a);
+                    OnVitalChanged((VitalType)a, 0);
 
                 OnAttributeChanged(at);
             };
@@ -116,16 +105,16 @@ public class ActorData
         _vitals = new Vital[] {
             new Vital(VitalType.Health,
                 () => {
-                    return GetAttribute(AttributeType.Vitality).value / 2 + 3;
+                    return GetAttribute(AttributeType.Vitality).value;
                 },
                 () => {
                     return
-                    "<i><color=grey>Health represents your physical wellness, if it reaches zero, you are dead permanently.</color></i>\n\n" +
-                    "Vitality: +" + (GetAttribute(AttributeType.Vitality).value / 2 + 3);
+                    "<i><color=grey>Health represents your physical wellness, if it reaches zero, you are permanently dead.</color></i>\n\n" +
+                    "Vitality: +" + GetAttribute(AttributeType.Vitality).value;
                 }),
             new Vital(VitalType.Corruption,
                 () => {
-                    return GetAttribute(AttributeType.Willpower).value * 2;
+                    return GetAttribute(AttributeType.Willpower).value;
                 },
                 () => {
                     return
@@ -135,72 +124,35 @@ public class ActorData
                 }),
             new Vital(VitalType.Stamina,
                 () => {
-                    return GetAttribute(AttributeType.Vitality).value / 4 + 5;
+                    return GetAttribute(AttributeType.Movement).value;
                 },
                 () => {
                     return
                     "<i><color=grey>Stamina represents your physical conditioning, it resets at the start of every turn.</color></i>\n\n" +
-                    "Vitality: +" + (GetAttribute(AttributeType.Vitality).value / 4 + 5); })
+                    "Vitality: +" + GetAttribute(AttributeType.Movement).value; })
         };
 
         for (int i = 0; i < _vitals.Length; i++)
-            _vitals[i].OnVitalChanged += (VitalType vt) => OnVitalChanged(vt);
+            _vitals[i].OnVitalChanged += (VitalType vt, int change) => OnVitalChanged(vt, change);
     }
     void InitializeEquipment()
     {
-        _equipment = new Item[Enum.GetNames(typeof(EquipSlot)).Length];
+        _equipment = new Equipable[Enum.GetNames(typeof(EquipSlot)).Length];
     }
     void InitializeInventory()
     {
-        GlobalEvents.Subscribe(GlobalEvent.NewTurn, (object[] args) =>
-        {
-            if(args[0] is Actor a && a == _actor)
-                TickItemTurnEffects();
-        });
+        _inventory = new Item[3];
     }
 
     public void AddSpell(Action spell)
     {
         spells.Add(spell);
-        GlobalEvents.Raise(GlobalEvent.ActorSpellsChanged, _actor);
+        OnSpellsChanged?.Invoke();
     }
     public void RemoveSpell(Action spell)
     {
         spells.Remove(spell);
-        GlobalEvents.Raise(GlobalEvent.ActorSpellsChanged, _actor);
-    }
-
-    public void AddItem(Item item)
-    {
-        item.OnPickUp(_actor);
-
-        if (item != null)
-        {
-            inventory.Add(item);
-            GlobalEvents.Raise(GlobalEvent.ActorInventoryChanged, _actor);
-        }
-        else
-        {
-            Exception e = new NullReferenceException();
-            Debug.LogWarning("Adding null item to inventory!");
-            Debug.Log(e.StackTrace);
-        }
-    }
-    public void RemoveItem(Item item)
-    {
-        item.OnDropped();
-
-        for (int i = 0; i < _equipment.Length; i++)
-        {
-            if(_equipment[i] == item)
-            {
-                new SetEquipmentCommand(_actor, (EquipSlot)i, null);
-                break;
-            }
-        }
-
-        inventory.Remove(item);
-        GlobalEvents.Raise(GlobalEvent.ActorInventoryChanged, _actor);
+        OnSpellsChanged?.Invoke();
     }
 
     public Stat GetStat(StatType st)
@@ -216,64 +168,128 @@ public class ActorData
         return _vitals[(int)vt];
     }
 
-    public void SetEquipment(EquipSlot slot, Item item)
+    //items
+    public void SetItem(Item item, int index)
     {
-        if(item != null)
+        if (item == null)
         {
-            //if not in inventory
-            if (this.inventory.IndexOf(item) == -1)
-                AddItem(item);
+            Debug.LogWarning("Setting null item!\n\n" + new NullReferenceException().StackTrace);
+            return;
+        }
+        if (index > _inventory.Length - 1)
+        {
+            Debug.LogWarning("Index out of range when attempting to set inventory item!" + new IndexOutOfRangeException().StackTrace);
+            return;
+        }
 
-            //if already equipped
-            if (_equipment.IndexOf(item) != -1)
-                SetEquipment((EquipSlot)_equipment.IndexOf(item), null);
+        _inventory[index]?.OnDropped();
+        _inventory[index] = item;
 
-            //hands
-            if (slot == EquipSlot.LeftHand || slot == EquipSlot.RightHand)
+        OnInventoryChanged?.Invoke(index);
+    }
+    public bool SetItemIfOpen(Item item)
+    {
+        for (int i = 0; i < _inventory.Length; i++)
+        {
+            if(_inventory[i] == null)
             {
-                //if we're equipping something that requires both hands, unequip other hand
-                if (item.damageType.requiresBothHands)
-                    SetEquipment(slot == EquipSlot.LeftHand ? EquipSlot.RightHand : EquipSlot.LeftHand, null);
-                //if we're equipping something that doesn't require both hands, check if we already have something
-                //in the other hand that requires both hands, and unequip it
-                else
-                {
-                    Item otherHand = GetEquipment(slot == EquipSlot.LeftHand ? EquipSlot.RightHand : EquipSlot.LeftHand);
-
-                    //if 
-                    if (otherHand != null)
-                        if (otherHand.damageType.requiresBothHands)
-                            SetEquipment(slot == EquipSlot.LeftHand ? EquipSlot.RightHand : EquipSlot.LeftHand, null);
-                }
+                SetItem(item, i);
+                return true;
             }
         }
 
-        //old
-        _equipment[(int)slot]?.OnUnequip();
-        //assign
-        _equipment[(int)slot] = item;
-        //new
-        _equipment[(int)slot]?.OnEquip();
-
-        OnEquipmentChanged?.Invoke(slot);
-        GlobalEvents.Raise(GlobalEvent.ActorEquipmentChanged, _actor, slot);
+        return false;
     }
-    public Item GetEquipment(EquipSlot slot)
+    public Item RemoveItem(int index)
+    {
+        Item item = _inventory[index];
+
+        _inventory[index] = null;
+
+        OnInventoryChanged?.Invoke(index);
+
+        return item;
+    }
+    public Item GetItem(int index)
+    {
+        return _inventory[index];
+    }
+
+    //equipment
+    public void SetEquipment(Equipable equipable)
+    {
+        if(equipable == null)
+        {
+            Debug.LogWarning("Equipping null equipable!\n\n" + new NullReferenceException().StackTrace);
+            return;
+        }
+
+        if (this.GetEquipment(equipable.slot) != null)
+            Unequip(equipable.slot);
+
+        if (equipable is Holdable holdable)
+        {
+            //if we're equipping something that requires both hands, unequip other hand
+            if (holdable.requiresBothHands)
+                Unequip(equipable.slot == EquipSlot.LeftHandItem ? EquipSlot.RightHandItem : EquipSlot.LeftHandItem);
+            //if we're equipping something that doesn't require both hands, check if we already have something
+            //in the other hand that requires both hands, and unequip it
+            else
+            {
+                Holdable otherHand = (Holdable)GetEquipment(equipable.slot == EquipSlot.LeftHandItem ? EquipSlot.RightHandItem : EquipSlot.LeftHandItem);
+
+                //if true
+                if (otherHand != null && otherHand.requiresBothHands)
+                    Unequip(otherHand.slot);
+            }
+        }
+
+        _equipment[(int)equipable.slot] = equipable;
+        _equipment[(int)equipable.slot]?.OnEquip();
+
+        OnEquipped?.Invoke(equipable);
+    }
+    public void Unequip(EquipSlot slot)
+    {
+        Equipable e = _equipment[(int)slot];
+
+        _equipment[(int)slot]?.OnUnequip();
+        _equipment[(int)slot] = null;
+
+        OnUnequipped?.Invoke(e);
+    }
+    public Equipable GetEquipment(EquipSlot slot)
     {
         return _equipment[(int)slot];
     }
 
-    void TickItemTurnEffects()
+    public IEnumerable<Item> GetAllItemsWithActions()
     {
-        for (int i = 0; i < this.inventory.Count; i++)
-            this.inventory[i]?.OnNewTurn();
+        return _equipment.Where(e => e?.GetActions(ActionCategory.Activateable).Count > 0).Concat(_inventory.Where(i => i?.GetActions(ActionCategory.Activateable).Count > 0));
     }
 
-    public delegate void EquipmentChangedEvent(EquipSlot slot);
-    public EquipmentChangedEvent OnEquipmentChanged;
+    public void TickItemTurnEffects()
+    {
+        for (int i = 0; i < _inventory.Length; i++)
+            _inventory[i]?.OnNewTurn();
+    }
 
-    public delegate void AttributeChangedEvent(AttributeType at);
-    public AttributeChangedEvent OnAttributeChanged;
-    public delegate void VitalChangedEvent(VitalType vt);
-    public VitalChangedEvent OnVitalChanged;
+    public void SetName(string name)
+    {
+        this.name = name;
+    }
+
+    public delegate void ActorEquipmentChangedEvent(Equipable equipable);
+    public ActorEquipmentChangedEvent OnEquipped;
+    public ActorEquipmentChangedEvent OnUnequipped;
+
+    public delegate void ActorInventoryChangedEvent(int index);
+    public ActorInventoryChangedEvent OnInventoryChanged;
+    public delegate void ActorSpellsChangedEvent();
+    public ActorSpellsChangedEvent OnSpellsChanged;
+
+    public delegate void ActorAttributeChangedEvent(AttributeType at);
+    public ActorAttributeChangedEvent OnAttributeChanged;
+    public delegate void ActorVitalChangedEvent(VitalType vt, int change);
+    public ActorVitalChangedEvent OnVitalChanged;
 }

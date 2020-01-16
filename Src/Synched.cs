@@ -1,30 +1,28 @@
 ﻿using Random = System.Random;
 
+using MoonSharp.Interpreter;
+
+[MoonSharpUserData]
 public static class Synched
 {
-    static Random random;
+    static Random _random;
 
     public static void SetSeed(int seed)
     {
-        random = new Random(seed);
+        _random = new Random(seed);
     }
 
     public static int Next(int min, int max)
     {
-        return random.Next(min, max);
+        return _random.Next(min, max);
     }
     public static float Next(float min, float max)
     {
-        double n = random.NextDouble();
-        return (float)(min + (n * (max - min)));
-    }
-    public static ItemRarity GetRarityWeighted(ItemRarity maxRarity)
-    {
-        return random.GetRarityWeighted(maxRarity);
+        return (float)(min + (_random.NextDouble() * (max - min)));
     }
 
     public static int Dice(int size)
     {
-        return random.Next(1, size + 1);
+        return _random.Next(1, size + 1);
     }
 }

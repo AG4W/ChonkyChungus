@@ -8,18 +8,24 @@ public class IKManager : MonoBehaviour
     [SerializeField]Transform _rightFoot;
     [SerializeField]Transform _leftFoot;
 
+    float[] _weights = new float[5];
+
     Transform _rightHandIKTarget;
     Transform _leftHandIKTarget;
 
     Vector3 _rightIKPos;
     Vector3 _leftIKPos;
 
+    Vector3 _lookAtPos;
+
     Animator _animator;
 
-    bool _doLeftHandIK = true;
+    bool[] _ikStatus;
+    bool _lookAtStatus = false;
 
-    void Start()
+    void Awake()
     {
+        _ikStatus = new bool[4];
         _animator = this.GetComponent<Animator>();
     }
     void OnAnimatorIK(int layerIndex)
@@ -37,7 +43,7 @@ public class IKManager : MonoBehaviour
             _animator.SetIKRotationWeight(AvatarIKGoal.RightHand, 0);
         }
 
-        if (_leftHandIKTarget != null && _doLeftHandIK)
+        if (_leftHandIKTarget != null && this.GetIKStatus(AvatarIKGoal.LeftHand))
         {
             _animator.SetIKPositionWeight(AvatarIKGoal.LeftHand, _leftHandWeight);
             _animator.SetIKRotationWeight(AvatarIKGoal.LeftHand, _leftHandWeight);
@@ -48,6 +54,12 @@ public class IKManager : MonoBehaviour
         {
             _animator.SetIKPositionWeight(AvatarIKGoal.LeftHand, 0);
             _animator.SetIKRotationWeight(AvatarIKGoal.LeftHand, 0);
+        }
+
+        if (_lookAtStatus)
+        {
+            _animator.SetLookAtPosition(_lookAtPos);
+            _animator.SetLookAtWeight(_weights[0], _weights[1], _weights[2], _weights[3], _weights[4]);
         }
     }
 
@@ -69,22 +81,28 @@ public class IKManager : MonoBehaviour
                 break;
         }
     }
+    public void SetLookAtTarget(Vector3 target, float weight, float body = .2f, float head = 1f, float eyes = 1f, float clamp = 1f)
+    {
+        _lookAtPos = target;
 
+        _weights[0] = weight;
+        _weights[1] = body;
+        _weights[2] = head;
+        _weights[3] = eyes;
+        _weights[4] = clamp;
+    }
+
+    public bool GetIKStatus(AvatarIKGoal ik)
+    {
+        return _ikStatus[(int)ik];
+    }
     public void SetIKStatus(AvatarIKGoal ik, bool status)
     {
-        switch (ik)
-        {
-            case AvatarIKGoal.LeftFoot:
-                break;
-            case AvatarIKGoal.RightFoot:
-                break;
-            case AvatarIKGoal.LeftHand:
-                _doLeftHandIK = status;
-                break;
-            case AvatarIKGoal.RightHand:
-                break;
-            default:
-                break;
-        }
+        _ikStatus[(int)ik] = status;
+    }
+
+    public void SetLookAtStatus(bool status)
+    {
+        _lookAtStatus = status;
     }
 }

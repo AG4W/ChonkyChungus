@@ -2,24 +2,12 @@
 using UnityEngine.EventSystems;
 
 using System.Collections.Generic;
-using System.Linq;
 
 public class LocalInputManager : MonoBehaviour
 {
     string _debugText;
 
-    [SerializeField]Color _main;
-    [SerializeField]Color _secondary;
-
-    [SerializeField]float _gridTransparencyDivider = 25f;
-
-    GameObject _marker;
-    MeshRenderer _markerRenderer;
-    LineRenderer _markerLine;
-    ScalePulseEffect _markerPulseEffect;
-    
-    LineRenderer _gridOutline;
-    List<GameObject> _gridMarkers = new List<GameObject>();
+    int _selectionRangeRestriction = 0;
 
     Camera _camera;
 
@@ -38,58 +26,27 @@ public class LocalInputManager : MonoBehaviour
         KeyCode.Alpha8,
         KeyCode.Alpha9,
         KeyCode.Alpha0,
-        KeyCode.Pipe
     };
 
     bool _showSprintRange;
     bool _inTargetingMode = false;
-    
+    bool _restrictSelectionToActorsOnly = false;
+
     void Awake()
     {
-        _marker = GameObject.Find("movementMarker");
-        _markerRenderer = _marker.GetComponentInChildren<MeshRenderer>();
-        _markerLine = _marker.GetComponentInChildren<LineRenderer>();
-        _markerLine.startWidth = .05f;
-        _markerLine.endWidth = .05f;
-        _markerPulseEffect = _marker.GetComponentInChildren<ScalePulseEffect>();
-
         _camera = Camera.main;
 
         GlobalEvents.Subscribe(GlobalEvent.ToggleMovement, (object[] args) => ToggleSprint());
-
-        GlobalEvents.Subscribe(GlobalEvent.NewTurn, (object[] args) =>
-        {
-            if ((Actor)args[0] != Player.actor)
-                return;
-
-            _marker.SetActive(true);
-        });
-        GlobalEvents.Subscribe(GlobalEvent.EndTurn, (object[] args) =>
-        {
-            if ((Actor)args[0] != Player.actor)
-                return;
-
-            _marker.SetActive(false);
-        });
-        
-        GlobalEvents.Subscribe(GlobalEvent.ActorVitalChanged, (object[] args) =>
-        {
-            if((Actor)args[0] == Player.actor && (VitalType)args[1] == VitalType.Stamina)
-                UpdateMarkerLine();
-        });
-
-        GlobalEvents.Subscribe(GlobalEvent.EnterTargetingMode, (object[] args) => SetTargetingMode(true));
-        GlobalEvents.Subscribe(GlobalEvent.ExitTargetingMode, (object[] args) => SetTargetingMode(false));
+        GlobalEvents.Subscribe(GlobalEvent.EnterTargetingMode, (object[] args) => _inTargetingMode = true);
+        GlobalEvents.Subscribe(GlobalEvent.ExitTargetingMode, (object[] args) => _inTargetingMode = false);
     }
     void Update()
     {
+        if (GameManager.turnIndex != 0)
+            return;
+
         if (_inTargetingMode)
         {
-            //move to next
-            if (Input.GetKey(KeyCode.LeftControl) && Input.GetKeyDown(KeyCode.Tab))
-                GlobalEvents.Raise(GlobalEvent.StepTargetIndex, false);
-            if (Input.GetKeyDown(KeyCode.Tab))
-                GlobalEvents.Raise(GlobalEvent.StepTargetIndex, true);
             //confirm target selection
             if (Input.GetKeyDown(KeyCode.Space))
                 GlobalEvents.Raise(GlobalEvent.ExitTargetingMode, true);
@@ -99,7 +56,9 @@ public class LocalInputManager : MonoBehaviour
         }
         else
         {
-            if (Player.actor.isBusy || !Player.actor.hasTurn)
+            UpdateCurrentTile();
+
+            if (Player.selectedActor.isBusy)
                 return;
 
             //iterate alphas
@@ -108,19 +67,15 @@ public class LocalInputManager : MonoBehaviour
                     GlobalEvents.Raise(GlobalEvent.HotkeyPressed, i);
 
             if (Input.GetKeyDown(KeyCode.M))
-                Player.data.AddItem(ItemGenerator.Get(ItemType.Weapon, ItemRarity.Common));
+                Player.selectedActor.data.SetEquipment(ItemGenerator.GetWeapon((WeaponType)Synched.Next(0, System.Enum.GetNames(typeof(WeaponType)).Length), ItemRarity.Common));
             if (Input.GetKeyDown(KeyCode.N))
-                Player.data.AddItem(ItemGenerator.Get(ItemType.LightSource, ItemRarity.Common));
+                Player.selectedActor.data.SetEquipment(ItemGenerator.GetArmour((EquipSlot)Synched.Next(2, System.Enum.GetNames(typeof(EquipSlot)).Length), ItemRarity.Common));
             if (Input.GetKeyDown(KeyCode.B))
-                Player.data.AddSpell(ItemGenerator.GetRandom());
+                Player.selectedActor.data.AddSpell(ItemGenerator.GetSpellRandom());
             if (Input.GetKeyDown(KeyCode.V))
-                Player.IncreaseExperience(Player.level * 1000);
-
-            if (Input.GetKey(KeyCode.LeftControl) && Input.GetKeyDown(KeyCode.Q))
-                GlobalEvents.Raise(GlobalEvent.SetGridMap, MapType.Movement);
-            if (Input.GetKey(KeyCode.LeftControl) && Input.GetKeyDown(KeyCode.W))
-                GlobalEvents.Raise(GlobalEvent.SetGridMap, MapType.LineOfSight);
-
+                Player.selectedActor.data.SetEquipment(ItemGenerator.GetLightSource(ItemRarity.Common));
+            if (Input.GetKeyDown(KeyCode.K))
+                Player.selectedActor.SetItemIfOpen(ItemGenerator.GetPotion(ItemRarity.Common));
             if (Input.GetKeyDown(KeyCode.I))
                 GlobalEvents.Raise(GlobalEvent.ToggleInventory);
             else if (Input.GetKeyDown(KeyCode.C))
@@ -129,14 +84,12 @@ public class LocalInputManager : MonoBehaviour
             if (EventSystem.current.IsPointerOverGameObject())
                 return;
 
-            UpdateCurrentTile();
-
             if (Input.GetKeyDown(KeyCode.Mouse0))
                 ProcessLeftClick();
             else if (Input.GetKeyDown(KeyCode.Mouse1))
                 ProcessRightClick();
             else if (Input.GetKeyDown(KeyCode.Space))
-                new EndTurnCommand(Player.actor);
+                new EndTurnCommand().Execute();
             else if (Input.GetKeyDown(KeyCode.LeftShift))
                 GlobalEvents.Raise(GlobalEvent.ToggleMovement);
             else if (Input.GetKeyDown(KeyCode.Tab))
@@ -145,150 +98,106 @@ public class LocalInputManager : MonoBehaviour
     }
     void OnGUI()
     {
-        if (!Input.GetKey(KeyCode.L))
-            return;
-
-        foreach (Tile tile in Player.actor.GetMap(MapType.LineOfSight).Keys)
+        if(_current?.entity != null)
         {
-            if (Pathfinder.Distance(tile, Player.actor.tile) <= 5 || tile.luminosity >= Player.actor.data.GetStat(StatType.SightThreshold).GetValue())
-            {
-                string text = tile.ToString();
+            string text = _current.entity.interactionHeader;
 
-                var position = _camera.WorldToScreenPoint(tile.position);
-                var textSize = GUI.skin.label.CalcSize(new GUIContent(text));
-                GUI.Label(new Rect(position.x, Screen.height - position.y, textSize.x, textSize.y), text);
+            var position = _camera.WorldToScreenPoint(_current.entity.tile.position + _current.entity.headerOffset);
+            var textSize = GUI.skin.label.CalcSize(new GUIContent(text));
+
+            GUI.Label(new Rect(position.x, Screen.height - position.y, textSize.x, textSize.y), text);
+        }
+
+        if (Input.GetKey(KeyCode.L))
+        {
+            foreach (Tile tile in Player.selectedActor.GetMap(MapType.LineOfSight).Keys)
+            {
+                if (Pathfinder.Distance(tile, Player.selectedActor.tile) <= 5 || tile.luminosity >= Player.selectedActor.data.GetStat(StatType.SightThreshold).GetValue())
+                {
+                    string text = tile.ToString();
+
+                    var position = _camera.WorldToScreenPoint(tile.position);
+                    var textSize = GUI.skin.label.CalcSize(new GUIContent(text));
+                    GUI.Label(new Rect(position.x, Screen.height - position.y, textSize.x, textSize.y), text);
+                }
             }
         }
     }
-
+    
     void ProcessLeftClick()
     {
-        if (_current.isTraversable)
-            new MoveCommand(Player.actor, _currentPath);
+        if (_current.status == TileStatus.Vacant)
+            new MoveCommand(Player.selectedActor, _currentPath);
         else if (_current.entity != null)
         {
             if (_current.entity is Actor a)
             {
                 //interact with friendlies? idk
-                if(a.teamID == Player.actor.teamID)
-                {
-                    Debug.Log("Clicked on friendly");
-                    new InteractCommand(Player.actor, a);
-                }
-                //else if (Player.actor.CanAttack(a, true))
-                //{
-                //    Debug.Log("Clicked on enemy");
-                //    new AttackCommand(Player.actor, a);
-                //}
+                if (a.teamID == Player.selectedActor.teamID && a.data.GetVital(VitalType.Stamina).current > 0)
+                    Player.SelectActor(a);
             }
-            else if (Player.actor.CanInteract(_current.entity, true))
-            {
-                Debug.Log("Clicked on interactable");
-                new InteractCommand(Player.actor, _current.entity);
-            }
+            else if (Player.selectedActor.CanInteract(_current.entity, true))
+                new InteractCommand(Player.selectedActor, _current.entity);
         }
     }
     void ProcessRightClick()
     {
         if(_current.entity != null)
-            _current.entity.Examine(Player.actor);
+            _current.entity.Examine(Player.selectedActor);
         else
-            new RotateCommand(Player.actor, _current.position);
+            new RotateCommand(Player.selectedActor, _current.position);
     }
 
     void UpdateCurrentTile()
     {
         Tile t = MouseToTile();
         
-        if (t != null)
+        if (t != null && t != _current)
         {
-            _current = t;
-
-            if (t.isTraversable)
+            //no range restriction
+            if(_selectionRangeRestriction == 0)
             {
-                if (!Player.actor.GetMap(MapType.Movement).ContainsKey(t))
-                    return;
-
-                _currentPath = Pathfinder.GetPath(Player.actor.GetMap(MapType.Movement), t, Player.actor.tile);
-
-                UpdateMovementMarker();
-            }
-            else if (t.entity != null)
-            {
-                Tile cn = Grid.GetNeighbours(t, true).OrderBy(tile => Pathfinder.Distance(Player.actor.tile, tile)).FirstOrDefault();
-
-                if (cn != null)
+                if (_restrictSelectionToActorsOnly)
                 {
-                    _currentPath = Pathfinder.GetPath(Player.actor.GetMap(MapType.Movement), t, Player.actor.tile);
-
-                    UpdateMovementMarker();
+                    if (t.entity != null && t.entity is Actor)
+                        UpdateCurrentPath(t);
+                }
+                else
+                {
+                    if (t.status != TileStatus.Blocked)
+                        UpdateCurrentPath(t);
+                }
+            }
+            else
+            {
+                if (_restrictSelectionToActorsOnly)
+                {
+                    if (t.entity != null && t.entity is Actor && Pathfinder.Distance(Player.selectedActor.tile, t) <= _selectionRangeRestriction)
+                        UpdateCurrentPath(t);
+                }
+                else
+                {
+                    if (t.status != TileStatus.Blocked && Pathfinder.Distance(Player.selectedActor.tile, t) <= _selectionRangeRestriction)
+                        UpdateCurrentPath(t);
                 }
             }
         }
     }
-    void UpdateMovementMarker()
+    void UpdateCurrentPath(Tile tile)
     {
-        _marker.transform.position = _current.position;
-    
-        Color c = Color.magenta;
-    
-        if (_current.isTraversable)
-        {
-            _markerPulseEffect.OnTraversable();
+        _currentPath = Pathfinder.GetPath(Player.selectedActor.GetMap(MapType.Movement), tile, Player.selectedActor.tile);
 
-            c = _currentPath.Count > Player.data.GetStat(StatType.WalkRange).GetValue() ? _secondary : _main;
-        }
-        else if (_current.entity != null)
-        {
-            _markerPulseEffect.OnInteractable();
-
-            if (_current.entity is Actor)
-            {
-                Actor a = _current.entity as Actor;
-
-                //interact with friendlies? idk
-                if (a.teamID == Player.actor.teamID)
-                    c = Color.green;
-                //else if (Player.actor.CanAttack(a, false))
-                //    c = Color.red;
-                else
-                    c = Color.yellow;
-            }
-            else
-                c = Color.yellow;
-        }
-        else
-            c = Color.red;
-    
-        _markerRenderer.material.color = c;
-        _markerRenderer.material.SetColor("_EmissiveColor", c * 3f);
-
-        UpdateMarkerLine();
-    }
-    void UpdateMarkerLine()
-    {
-        if (_currentPath == null)
+        if (_currentPath == null || _currentPath.Count == 0)
             return;
 
-        _markerLine.startColor = _currentPath.Count > Player.data.GetStat(StatType.WalkRange).GetValue() ? _secondary : _main;
-        _markerLine.endColor = _currentPath.Count > Player.data.GetStat(StatType.WalkRange).GetValue() ? _secondary : _main;
-        _markerLine.positionCount = _currentPath.Count + 1;
-        _markerLine.SetPosition(0, Player.actor.tile.position + Vector3.up * .33f);
+        _current = _currentPath.Last();
 
-        for (int i = 0; i < _currentPath.Count; i++)
-            _markerLine.SetPosition(i + 1, _currentPath[i].position + Vector3.up * .33f);
+        GlobalEvents.Raise(GlobalEvent.CurrentPathChanged, _currentPath);
     }
 
     void ToggleSprint()
     {
         _showSprintRange = !_showSprintRange;
-
-        UpdateMarkerLine();
-    }
-
-    void SetTargetingMode(bool status)
-    {
-        _inTargetingMode = status;
     }
 
     Tile MouseToTile()
@@ -296,8 +205,8 @@ public class LocalInputManager : MonoBehaviour
         Ray ray = _camera.ScreenPointToRay(Input.mousePosition);
         Vector3 ip = ray.origin - (ray.direction / ray.direction.y) * ray.origin.y;
 
-        int x = (int)ip.x;
-        int z = (int)ip.z;
+        int x = Mathf.RoundToInt(ip.x);
+        int z = Mathf.RoundToInt(ip.z);
     
         if (x < 0 || x > Grid.size - 1 || z < 0 || z > Grid.size - 1 || Grid.Get(x, z).status == TileStatus.Blocked)
             return null;

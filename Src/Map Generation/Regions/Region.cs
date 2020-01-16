@@ -1,88 +1,51 @@
 ﻿using UnityEngine;
 
-using Object = UnityEngine.Object;
 using System.Collections.Generic;
+using System.Linq;
 
 public class Region
 {
     public List<Tile> tiles { get; protected set; }
     public List<Tile> edges { get; protected set; }
 
-    public Region()
+    public RegionProfile profile { get; private set; }
+    public PCGTemplate template { get; protected set; }
+
+    public Region(RegionProfile profile)
     {
         this.tiles = new List<Tile>();
         this.edges = new List<Tile>();
+
+        this.profile = profile;
     }
 
-    public virtual GameObject Instantiate()
+    public virtual void OnInstantiate()
     {
-        GameObject tile = Resources.Load<GameObject>("tile");
-        GameObject wall = Resources.Load<GameObject>("wall");
-
-        GameObject floor = new GameObject("floor", typeof(MeshFilter), typeof(MeshRenderer));
-        GameObject walls = new GameObject("walls", typeof(MeshFilter), typeof(MeshRenderer));
-
-        MeshFilter[] floorFilters = new MeshFilter[tiles.Count];
-        CombineInstance[] floorCombine = new CombineInstance[floorFilters.Length];
-
-        List<MeshFilter> wallFilters = new List<MeshFilter>();
-
-        for (int i = 0; i < tiles.Count; i++)
-        {
-            //create floor
-            floorFilters[i] = Object.Instantiate(tile, tiles[i].position, Quaternion.identity, null).GetComponentInChildren<MeshFilter>();
-
-            //create walls
-            for (int x = tiles[i].x - 1; x <= tiles[i].x + 1; x++)
-            {
-                for (int z = tiles[i].z - 1; z <= tiles[i].z + 1; z++)
-                {
-                    if (x < 0 || x > Grid.size - 1 || z < 0 || z > Grid.size - 1 || Grid.Get(x, z).index != -1)
-                        continue;
-                    else
-                        wallFilters.Add(Object.Instantiate(wall, Grid.Get(x, z).position, Quaternion.identity, null).GetComponentInChildren<MeshFilter>());
-                }
-            }
-        }
-
-        CombineInstance[] wallCombine = new CombineInstance[wallFilters.Count];
-
-        for (int i = 0; i < floorFilters.Length; i++)
-        {
-            floorCombine[i].mesh = floorFilters[i].sharedMesh;
-            floorCombine[i].transform = floorFilters[i].transform.localToWorldMatrix;
-
-            Object.Destroy(floorFilters[i].transform.root.gameObject);
-        }
-        for (int i = 0; i < wallFilters.Count; i++)
-        {
-            wallCombine[i].mesh = wallFilters[i].sharedMesh;
-            wallCombine[i].transform = wallFilters[i].transform.localToWorldMatrix;
-
-            Object.Destroy(wallFilters[i].transform.root.gameObject);
-        }
-
-        floor.GetComponent<MeshFilter>().mesh = new Mesh();
-        floor.GetComponent<MeshFilter>().mesh.CombineMeshes(floorCombine);
-        floor.GetComponent<MeshFilter>().mesh.RecalculateNormals();
-        floor.GetComponent<MeshRenderer>().material = Resources.LoadAll<Material>("Floors/").Random();
-
-        walls.GetComponent<MeshFilter>().mesh = new Mesh();
-        walls.GetComponent<MeshFilter>().mesh.CombineMeshes(wallCombine);
-        walls.GetComponent<MeshFilter>().mesh.RecalculateNormals();
-        walls.GetComponent<MeshRenderer>().material = Resources.LoadAll<Material>("Walls/").Random();
-
-        //InstantiateDecor();
-        return floor;
+        //load a profile
+        if(this.template == null)
+            this.template = Resources.LoadAll<PCGTemplate>("PCGTemplates/Rooms/").Where(t => t.profile == this.profile).ToArray().Random();
     }
 
-    public Tile GetRandom(bool isTraversable)
+    public Tile GetRandom(params TileStatus[] filter)
     {
         Tile t = tiles.Random();
 
-        while (t.isTraversable != isTraversable)
+        while (!filter.Contains(t.status))
             t = tiles.Random();
 
         return t;
     }
+    public Tile[] GetTiles(params TileStatus[] filter)
+    {
+        return tiles.Where(t => filter.Contains(t.status)).ToArray();
+    }
+}
+//this is sorta awkward, but whatevs
+public enum RegionProfile
+{
+    //needs to always stay at 0
+    Entrance,
+
+    Generic,
+    Treasure,
 }

@@ -1,13 +1,7 @@
-﻿public class EndTurnCommand : ActorCommand
+﻿public class EndTurnCommand : Command
 {
-    public EndTurnCommand(Actor actor) : base(actor)
-    {
-
-    }
-
     public override void Execute()
     {
-        base.actor.OnEndTurn();
+        GlobalEvents.Raise(GlobalEvent.EndTurn);
     }
 }
-

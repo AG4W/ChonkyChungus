@@ -5,7 +5,8 @@ using System.Collections.Generic;
 
 public class UIManager : MonoBehaviour
 {
-    [SerializeField]Color _empty = new Color(.5f, .5f, .5f, .5f);
+    [SerializeField]Color _empty = new Color(.5f, .5f, .5f);
+    [Range(0f, 1f)][SerializeField]float _uiAlpha = .25f;
 
     [SerializeField]Transform _itemList;
     [SerializeField]GameObject _actorItem;
@@ -13,6 +14,8 @@ public class UIManager : MonoBehaviour
 
     [SerializeField]Transform _popupList;
     [SerializeField]GameObject _popup;
+
+    [SerializeField]Vector3 _actorItemWorldOffset = new Vector3(0, 2, 0);
 
     Dictionary<Actor, GameObject> _items;
 
@@ -28,21 +31,27 @@ public class UIManager : MonoBehaviour
         GlobalEvents.Subscribe(GlobalEvent.ActorVitalChanged, (object[] args) => OnActorVitalChanged((Actor)args[0], (VitalType)args[1]));
         GlobalEvents.Subscribe(GlobalEvent.ActorRemoved, (object[] args) => OnActorRemoved((Actor)args[0]));
 
+        GlobalEvents.Subscribe(GlobalEvent.ToggleActorUIVisibility, (object[] args) => {
+            _items[(Actor)args[0]].SetActive((bool)args[1]);
+        });
+
         GlobalEvents.Subscribe(GlobalEvent.PopupRequested, (object[] args) =>
         {
             if (args.Length == 2)
                 CreatePopup((Vector3)args[0], (string)args[1]);
             else if (args.Length == 3)
                 CreatePopup((Vector3)args[0], (string)args[1], (float)args[2]);
-            else
+            else if(args.Length == 4)
                 CreatePopup((Vector3)args[0], (string)args[1], (float)args[2], (float)args[3]);
+            else
+                CreatePopup((Vector3)args[0], (string)args[1], (float)args[2], (float)args[3], (float)args[4]);
         });
     }
     void Update()
     {
         foreach (var item in _items)
             if(item.Value.gameObject.activeSelf)
-                item.Value.transform.position = _camera.WorldToScreenPoint(item.Key.transform.position);
+                item.Value.transform.position = _camera.WorldToScreenPoint(item.Key.transform.position + _actorItemWorldOffset);
     }
 
     void OnActorAdded(Actor a)
@@ -74,7 +83,7 @@ public class UIManager : MonoBehaviour
 
     void UpdateVital(Transform root, int currentValue, int maxValue, Color color)
     {
-        color.a = .5f;
+        color.a = _uiAlpha;
     
         if(root.childCount != maxValue)
         {
@@ -87,10 +96,11 @@ public class UIManager : MonoBehaviour
             for (int i = 0; i < maxValue; i++)
                 root.GetChild(i).GetComponent<Image>().color = i < currentValue ? color : _empty;
     }
-    void CreatePopup(Vector3 position, string text, float lifetime = 2f, float speed = .25f)
+    void CreatePopup(Vector3 position, string text, float lifetime = 2f, float speed = .25f, float scaleMultiplier = 1f)
     {
         GameObject g = Instantiate(_popup, _popupList);
     
         g.GetComponent<PopupEntity>().Initialize(text, lifetime, speed, position);
+        g.transform.localScale *= scaleMultiplier;
     }
 }

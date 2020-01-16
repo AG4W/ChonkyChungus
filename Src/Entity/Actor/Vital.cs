@@ -36,10 +36,13 @@ public class Vital
         else if (this.current > _getMax())
             this.current = _getMax();
 
-        OnVitalChanged?.Invoke(type);
+        OnVitalChanged?.Invoke(type, amount);
     }
     public void SetCurrent(int current)
     {
+        //cache old
+        int change = current - this.current;
+
         this.current = current;
 
         if (this.current < 0)
@@ -47,7 +50,7 @@ public class Vital
         else if (this.current > _getMax())
             this.current = _getMax();
 
-        OnVitalChanged?.Invoke(type);
+        OnVitalChanged?.Invoke(type, change);
     }
 
     public int GetMax()
@@ -55,7 +58,7 @@ public class Vital
         return _getMax();
     }
 
-    public delegate void VitalChangedEvent(VitalType vt);
+    public delegate void VitalChangedEvent(VitalType vt, int change);
     public event VitalChangedEvent OnVitalChanged;
 
     public string ToTooltip()
@@ -74,6 +77,20 @@ public class Vital
                 return Color.green;
             default:
                 return Color.white;
+        }
+    }
+    public static string ToStringFormat(VitalType type)
+    {
+        switch (type)
+        {
+            case VitalType.Health:
+                return "<color=red>Health</color>";
+            case VitalType.Corruption:
+                return "<color=purple>Corruption</color>";
+            case VitalType.Stamina:
+                return "<color=green>Stamina</color>";
+            default:
+                return "Vital N/A";
         }
     }
 }

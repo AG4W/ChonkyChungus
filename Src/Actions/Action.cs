@@ -1,6 +1,9 @@
 ﻿using UnityEngine;
 
+using Object = UnityEngine.Object;
+
 using MoonSharp.Interpreter;
+using System;
 
 namespace ag4w.Actions
 {
@@ -10,31 +13,26 @@ namespace ag4w.Actions
         Script _lua;
 
         public string header { get; private set; }
-        public string description { get; private set; }
-        //kanske flavor text
 
         public Sprite icon { get; private set; }
 
-        public AnimationSet animationSet { get; private set; }
-        public int animation { get; private set; }
-
-        public ActionCategory[] categories { get; private set; }
-
-        public Action(string header, string description, Sprite icon, AnimationSet animationSet, int animation, ActionCategory[] categories, string lua)
+        //let's not comment the part that touches the one language you're not familiar with
+        //fucking genius
+        public Action(string header, Sprite icon, string lua)
         {
             this.header = header;
-            this.description = description;
-
             this.icon = icon;
 
-            this.animationSet = animationSet;
-            this.animation = animation;
-
-            this.categories = categories;
-
             _lua = new Script();
-            _lua.Globals["GlobalEvents"] = typeof(GlobalEvents);
 
+            //map lua print to unity debug
+            _lua.Options.DebugPrint = s => { Debug.Log(s); };
+
+            //register static classes
+            _lua.Globals["GlobalEvents"] = typeof(GlobalEvents);
+            _lua.Globals["Pathfinder"] = typeof(Pathfinder);
+
+            //runtime compile
             _lua.DoString(lua);
         }
 
@@ -42,18 +40,31 @@ namespace ag4w.Actions
         {
             return _lua.Call(_lua.Globals["validate"], new ActionContext(args[0] as Entity, args[1] as Item, this)).Boolean;
         }
-        public void Activate(params object[] args)
+        /// <summary>
+        /// Takes an actor and an item and self-creates a new actioncontext
+        /// </summary>
+        /// <param name="args"></param>
+        public ActionContext Activate(params object[] args)
         {
-            _lua.Call(_lua.Globals["activate"], new ActionContext(args[0] as Entity, args[1] as Item, this));
+            return _lua.Call(_lua.Globals["activate"], new ActionContext(args[0] as Entity, args[1] as Item, this)).ToObject<ActionContext>();
         }
-        public void Execute(params object[] args)
+        public ActionContext Activate(ActionContext context)
         {
-            _lua.Call(_lua.Globals["execute"], args);
+            return _lua.Call(_lua.Globals["activate"], context).ToObject<ActionContext>();
+        }
+        public void Execute(ActionContext context)
+        {
+            _lua.Call(_lua.Globals["execute"], context);
+        }
+
+        public string GetDescription(Actor caster, Item item)
+        {
+            return _lua.Call(_lua.Globals["getDescription"], new ActionContext(caster, item, this)).String;
         }
 
         public override string ToString()
         {
-            return header + "\n" + "<i><color=grey>" + description + "</color></i>";
+            return header;
         }
     }
 }

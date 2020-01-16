@@ -59,6 +59,8 @@ public enum GlobalEvent
     ActorVitalChanged,
     ActorTargetsChanged,
     ActorRemoved,
+    ActorStatusChanged,
+    ActorSelected,
 
     LightSourceInfluenceChanged,
     //init
@@ -66,31 +68,22 @@ public enum GlobalEvent
     //ui
     MissionAdded,
     TaskStatusChanged,
+    ToggleActorUIVisibility,
 
-    //prob. obsolote?
-    EntityDiscovered,
+    PopupRequested,
 
     //camera manager
-    PopupRequested,
-    SetCameraTrackingTarget,
     JumpCameraTo,
-    CutToCameraTargeteeTargetShot,
-    ExitDynamicMode,
 
-    //targeting manager
+    //targeting
     EnterTargetingMode,
-    SetTargetee,
-    StepTargetIndex,
-    SetTargetIndex,
     ExitTargetingMode,
-
-    //crosshair
-    ShowCrosshair,
-    HideCrosshair,
 
     //grid
     SetGridMap,
     ToggleGridVisibility,
+    CurrentPathChanged,
+    TogglePathVisiblity,
 
     //game manager
     NewTurn,
@@ -98,4 +91,10 @@ public enum GlobalEvent
 
     //hotkeys
     HotkeyPressed,
+
+    //loading screen
+    OpenLoadingScreen,
+    SetLoadingBarText,
+    SetLoadingBarProgress,
+    CloseLoadingScreen,
 }

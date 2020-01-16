@@ -11,7 +11,7 @@ public class SpellsUIManager : MonoBehaviour
     void Start()
     {
         GlobalEvents.Subscribe(GlobalEvent.ActorSpellsChanged, (object[] args) => UpdateSpells());
-
+        GlobalEvents.Subscribe(GlobalEvent.ActorSelected, (object[] args) => UpdateSpells());
         GlobalEvents.Subscribe(GlobalEvent.HotkeyPressed, OnHotkeyPressed);
     }
 
@@ -19,9 +19,8 @@ public class SpellsUIManager : MonoBehaviour
     {
         for (int i = 0; i < _list.childCount; i++)
             Destroy(_list.GetChild(i).gameObject);
-
-        for (int i = 0; i < Player.actor.data.spells.Count; i++)
-            CreateSpellItem(Player.actor.data.spells[i], i);
+        for (int i = 0; i < Player.selectedActor.data.spells.Count; i++)
+            CreateSpellItem(Player.selectedActor.data.spells[i], i);
     }
     void CreateSpellItem(Action action, int index)
     {
@@ -30,17 +29,20 @@ public class SpellsUIManager : MonoBehaviour
         //yuck
         g.transform.Find("background").Find("icon").GetComponent<Image>().sprite = action.icon;
         g.transform.Find("borders").GetComponent<Image>().color = Color.blue;
-        g.transform.Find("index").GetComponent<Text>().text = 
-            index == 9 ? "0" : index == 10 ? "§" : (index + 1).ToString();
+        g.transform.Find("index").GetComponent<Text>().text = index.ToString();
 
         g.GetComponent<GenericPointerHandler>().Initialize(
             () => Tooltip.Open(action.ToString()),
-            () => action.Activate(Player.actor, null),
+            () => 
+            {
+                if (action.Validate(Player.selectedActor, null))
+                    action.Activate(Player.selectedActor, null);
+            },
             null,
             null,
             () => Tooltip.Close());
 
-        g.GetComponent<GenericPointerHandler>().SetInteractable(action.Validate(Player.actor, null));
+        //g.GetComponent<GenericPointerHandler>().SetInteractable(action.Validate(Player.actor, null));
     }
 
     void OnHotkeyPressed(object[] args)

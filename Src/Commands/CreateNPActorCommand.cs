@@ -21,7 +21,7 @@ public class CreateNPActorCommand : Command
 
         a.Initialize(_template.Instantiate(), 1);
         a.gameObject.name = a.data.name;
-        a.SetPosition(_position ?? Grid.GetRandom(true));
+        a.SetPosition(_position ?? Grid.GetRandom(TileStatus.Vacant));
 
         GlobalEvents.Raise(GlobalEvent.ActorAdded, a);
     }

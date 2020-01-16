@@ -6,25 +6,13 @@
     public int centerX { get; protected set; }
     public int centerZ { get; protected set; }
 
-    public RoomType type { get; private set; }
-
     protected int index { get; }
 
-    public Room(int ox, int oz, int index, RoomType type)
+    public Room(int ox, int oz, int index, RegionProfile profile) : base(profile)
     {
         this.originX = ox;
         this.originZ = oz;
 
-        this.type = type;
-
         this.index = index;
     }
-}
-public enum RoomType
-{
-    Entrance,
-    Commons,
-    //Kitchen,
-    Library,
-    Chapel,
 }

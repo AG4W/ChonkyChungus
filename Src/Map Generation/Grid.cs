@@ -1,4 +1,5 @@
 ﻿using System.Collections.Generic;
+using System.Linq;
 
 public static class Grid
 {
@@ -26,12 +27,12 @@ public static class Grid
     {
         return _tiles[x, z];
     }
-    public static Tile GetRandom(bool isTraversable)
+    public static Tile GetRandom(params TileStatus[] filter)
     {
         int iterations = 0;
         Tile t = _tiles[Synched.Next(0, _tiles.GetLength(0)), Synched.Next(0, _tiles.GetLength(1))];
-
-        while (t.isTraversable != isTraversable)
+    
+        while (!filter.Contains(t.status))
         {
             if (iterations > 5000)
             {
@@ -45,7 +46,7 @@ public static class Grid
 
         return t;
     }
-    public static List<Tile> GetNeighbours(Tile o, bool excludeNonTraversable)
+    public static List<Tile> GetNeighbours(Tile o)
     {
         List<Tile> n = new List<Tile>();
 
@@ -59,7 +60,7 @@ public static class Grid
                 if (x < 0 || x > _tiles.GetLength(0) - 1 || z < 0 || z > _tiles.GetLength(1) - 1 || _tiles[x, z] == o)
                     continue;
 
-                if (excludeNonTraversable && !_tiles[x, z].isTraversable)
+                if (_tiles[x, z].status == TileStatus.Blocked)
                     continue;
 
                 n.Add(_tiles[x, z]);

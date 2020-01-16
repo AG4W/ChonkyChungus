@@ -2,7 +2,6 @@
 
 using System.Collections.Generic;
 using System.Linq;
-using System.IO;
 
 using ag4w.Actions;
 
@@ -11,32 +10,35 @@ public static class ItemGenerator
     static Action[] _itemActions;
     static Action[] _spells;
 
-    static DamageType[] _weaponDamageTypes;
-    static DamageType _defaultDamageType;
-
-    static PrefabCollection[] _prefabs;
+    static WeaponCollection[] _weapons;
+    static PrefabCollection[] _armours;
+    static WeaponCollection[] _offhands;
+    static PrefabCollection[] _consumables;
 
     public static void Initialize()
     {
-        LoadDamageTypes();
-        LoadPrefabCollections();
+        LoadCollections();
         LoadActions();
     }
 
-    static void LoadDamageTypes()
+    static void LoadCollections()
     {
-        string defaultTypePath = Application.dataPath + "/Resources/Configs/defaultDamageType.json";
-        string weaponDamageTypesPath = Application.dataPath + "/Resources/Configs/weaponDamageTypes.json";
+        _armours = new PrefabCollection[System.Enum.GetNames(typeof(EquipSlot)).Length];
 
-        _defaultDamageType = JsonUtility.FromJson<DamageType>(File.ReadAllText(defaultTypePath));
-        _weaponDamageTypes = JsonHelper.GetJsonArray<DamageType>(File.ReadAllText(weaponDamageTypesPath));
-    }
-    static void LoadPrefabCollections()
-    {
-        _prefabs = new PrefabCollection[System.Enum.GetNames(typeof(ItemType)).Length];
+        for (int i = 2; i < _armours.Length; i++)
+            _armours[i] = Resources.Load<PrefabCollection>("Collections/Armours/" + ((EquipSlot)i).ToString());
 
-        for (int i = 0; i < _prefabs.Length; i++)
-            _prefabs[i] = Resources.Load<PrefabCollection>("PrefabCollections/" + ((ItemType)i).ToString());
+        _weapons = new WeaponCollection[System.Enum.GetNames(typeof(WeaponType)).Length];
+    
+        for (int i = 0; i < _weapons.Length; i++)
+            _weapons[i] = Resources.Load<WeaponCollection>("Collections/Weapons/" + ((WeaponType)i).ToString());
+
+        _offhands = Resources.LoadAll<WeaponCollection>("Collections/Offhands/");
+
+        _consumables = new PrefabCollection[System.Enum.GetNames(typeof(ConsumableType)).Length];
+
+        for (int i = 0; i < _consumables.Length; i++)
+            _consumables[i] = Resources.Load<PrefabCollection>("Collections/Consumables/" + ((ConsumableType)i).ToString());
     }
     static void LoadActions()
     {
@@ -45,6 +47,8 @@ public static class ItemGenerator
         foreach (ActionTemplate at in Resources.LoadAll<ActionTemplate>("Templates/Item Actions/"))
             actions.Add(at.Instantiate());
 
+        //todo
+        //load additional user data from disk
         _itemActions = actions.ToArray();
 
         actions.Clear();
@@ -52,49 +56,82 @@ public static class ItemGenerator
         foreach (ActionTemplate at in Resources.LoadAll<ActionTemplate>("Templates/Spells/"))
             actions.Add(at.Instantiate());
 
+        //todo
+        //load additional user data from disk
         _spells = actions.ToArray();
     }
 
-    public static Item Get(ItemType itemType, ItemRarity rarity, DamageType type = null)
+    public static Weapon GetWeapon(WeaponType type, ItemRarity rarity)
     {
-        Item i;
+        WeaponPrefabData wpd = _weapons[(int)type].weapons.Random();
+        Weapon weapon = new Weapon(wpd.prefab.name, "n/A", rarity, wpd.animationSet.Random(), wpd.prefab, wpd.requiresBothHands, wpd.useLeftHandIK, type);
 
-        type = type ?? (itemType == ItemType.Weapon ? _weaponDamageTypes.Random() : _defaultDamageType);
-
-        GameObject prefab = _prefabs[(int)itemType].GetRandom();
-        string name = prefab.name;
-
-        switch (itemType)
+        //assign default actions
+        switch (type)
         {
-            case ItemType.Weapon:
-                i = new Item(name, "n/a", type, prefab, rarity);
+            case WeaponType.OnehandedSword:
                 break;
-            case ItemType.Armour:
-                i = new Item(name, "n/a", type, prefab, rarity);
+            case WeaponType.TwohandedSword:
                 break;
-            case ItemType.Consumable:
-                i = new Item(name, "n/a", type, prefab, rarity);
+            case WeaponType.OnehandedBlunt:
                 break;
-            case ItemType.LightSource:
-                i = new LightSource(name, "n/a", type, prefab, rarity, 20, 14);
+            case WeaponType.TwohandedBlunt:
+                break;
+            case WeaponType.Polearm:
+                break;
+            case WeaponType.Ranged:
                 break;
             default:
-                i = null;
                 break;
         }
 
-        //setup default actions
-        i.GetActions(ActionCategory.Attack).Add(_itemActions.First(a => a.categories.Contains(ActionCategory.Attack)));
+        weapon.GetActions(ActionCategory.Activateable).Add(_itemActions.FirstOrDefault(a => a.header == "Precise Strike"));
+        //weapon.GetActions(ActionCategory.Activateable).Add(_itemActions.FirstOrDefault(a => a.header == "OP Action of Epic Asspounding"));
+
+        return weapon;
+    }
+    public static Armour GetArmour(EquipSlot slot, ItemRarity rarity)
+    {
+        GameObject prefab = _armours[(int)slot].prefabs.Random();
+
+        return new Armour(prefab.name, "n/A", rarity, slot, prefab);
+    }
+    public static Armour GetSpecificArmour(string filter, EquipSlot slot, ItemRarity rarity)
+    {
+        Debug.Log(slot);
+
+        GameObject prefab = _armours[(int)slot].prefabs.Where(p => p.name.Contains(filter)).ToArray().Random();
+
+        if(prefab == null)
+        {
+            Debug.LogWarning("Warning, no prefabs with the word: " + filter + " exist!");
+            prefab = _armours[(int)slot].prefabs.Random();
+        }
+
+        return new Armour(prefab.name, "n/A", rarity, slot, prefab);
+    }
+    public static Holdable GetLightSource(ItemRarity rarity)
+    {
+        WeaponPrefabData wpd = _offhands.Random().weapons.Random();
+
+        return new Holdable("Torch", "A torch", rarity, EquipSlot.LeftHandItem, wpd.prefab, wpd.animationSet.Random(), false, wpd.useLeftHandIK);
+    }
+
+    public static Item GetPotion(ItemRarity rarity)
+    {
+        Item i = new Item("Potion", "n/A", rarity);
+
+        i.GetActions(ActionCategory.Activateable).Add(_itemActions.FirstOrDefault(a => a.header == "Throw"));
 
         return i;
     }
 
     //spells
-    public static Action Get(string name)
+    public static Action GetSpell(string name)
     {
         return _spells.FirstOrDefault(s => s.header == name);
     }
-    public static Action GetRandom()
+    public static Action GetSpellRandom()
     {
         return _spells.Random();
     }

@@ -3,17 +3,24 @@
 public class PCGEntityData : MonoBehaviour
 {
     //other stuff to come
-    [Header("Currently not used.")]
-    [SerializeField]int _sizeX;
-    [SerializeField]int _sizeY;
+    [Header("Offsets will be rounded to integers")]
+    [SerializeField]Vector2Int _positiveSize = new Vector2Int(0, 0);
+    [SerializeField]Vector2Int _negativeSize = new Vector2Int(0, 0);
 
     [Header("Tile Stuff")]
     [SerializeField]bool _blocksTile;
     [SerializeField]bool _blocksLineOfSight;
 
-    public int sizeX { get { return _sizeX; } }
-    public int sizeY { get { return _sizeY; } }
+    public Vector2Int positiveSize { get { return _positiveSize; } }
+    public Vector2Int negativeSize { get { return _negativeSize; } }
 
     public bool blocksTile { get { return _blocksTile; } }
     public bool blocksLineOfSight { get { return _blocksLineOfSight; } }
+
+    public PCGSubEntity[] subEntities { get; private set; }
+
+    void Awake()
+    {
+        this.subEntities = this.GetComponentsInChildren<PCGSubEntity>();
+    }
 }

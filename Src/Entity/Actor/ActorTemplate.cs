@@ -3,13 +3,33 @@
 [CreateAssetMenu(menuName = "Templates/ActorTemplate")]
 public class ActorTemplate : ScriptableObject
 {
+    [SerializeField]string _name;
+    [SerializeField]string[] _randomNameList = new string[]
+    {
+        "Axel",
+        "Erik",
+        "Albin",
+        "Johan",
+        "Veronica",
+        "Torbjörn",
+        "Carolina",
+        "William",
+        "Alexander",
+        "Viola",
+        "Emma",
+        "Lisa",
+    };
+
     [SerializeField]RaceType _race;
+    [SerializeField]RaceAnimationSet _raceAnimationSet;
 
     [Range(0, 99)][SerializeField]int _strength = 1;
     [Range(0, 99)][SerializeField]int _vitality = 1;
-    [Range(0, 99)][SerializeField]int _quickness = 1;
-    [Range(0, 99)][SerializeField]int _accuracy = 1;
+    [Range(0, 99)][SerializeField]int _movement = 1;
     [Range(0, 99)][SerializeField]int _willpower = 1;
+
+    [Range(0, 99)][SerializeField]int _sightRange;
+    [Range(0f, 1f)][SerializeField]float _sightThreshold;
 
     [SerializeField]GameObject _prefab;
 
@@ -17,12 +37,15 @@ public class ActorTemplate : ScriptableObject
     [SerializeField]AudioClip[] _deathSFX;
 
     public RaceType race { get { return _race; } }
+    public RaceAnimationSet raceAnimationSet { get { return _raceAnimationSet; } }
 
     public int strength { get { return _strength; } }
     public int vitality { get { return _vitality; } }
-    public int quickness { get { return _quickness; } }
-    public int accuracy { get { return _accuracy; } }
+    public int movement { get { return _movement; } }
     public int willpower { get { return _willpower; } }
+
+    public int sightRange { get { return _sightRange; } }
+    public float sightThreshold { get { return _sightThreshold; } }
 
     public GameObject prefab { get { return _prefab; } }
 
@@ -31,65 +54,12 @@ public class ActorTemplate : ScriptableObject
 
     public ActorData Instantiate()
     {
-        return new ActorData(this.name, this);
+        return new ActorData(_name == null || _name.Length == 0 ? _randomNameList.Random() : _name, this);
     }
-
-    public int GetModifier(AttributeType attribute)
-    {
-        switch (attribute)
-        {
-            case AttributeType.Strength:
-                switch (race)
-                {
-                    case RaceType.Human:
-                        return 3;
-                    case RaceType.Undead:
-                        return 4;
-                    default:
-                        return -1;
-                }
-            case AttributeType.Vitality:
-                switch (race)
-                {
-                    case RaceType.Human:
-                        return 4;
-                    case RaceType.Undead:
-                        return 1;
-                    default:
-                        return -1;
-                }
-            case AttributeType.Quickness:
-                switch (race)
-                {
-                    case RaceType.Human:
-                        return 4;
-                    case RaceType.Undead:
-                        return 1;
-                    default:
-                        return -1;
-                }
-            case AttributeType.Accuracy:
-                switch (race)
-                {
-                    case RaceType.Human:
-                        return 3;
-                    case RaceType.Undead:
-                        return 1;
-                    default:
-                        return -1;
-                }
-            case AttributeType.Willpower:
-                switch (race)
-                {
-                    case RaceType.Human:
-                        return 2;
-                    case RaceType.Undead:
-                        return 99;
-                    default:
-                        return -1;
-                }
-            default:
-                return -1;
-        }
-    }
+}
+public enum RaceAnimationSet
+{
+    Humanoid,
+    UndeadShambling,
+    UndeadCrawling,
 }

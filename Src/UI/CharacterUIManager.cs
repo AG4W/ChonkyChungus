@@ -63,10 +63,10 @@ public class CharacterUIManager : TabBehaviour
         
             _attributeItems[a] = CreateValueHeaderItem(
                 ((AttributeType)a).ToString(),
-                Player.data.GetAttribute((AttributeType)a).value.ToString(),
+                Player.selectedActor.data.GetAttribute((AttributeType)a).value.ToString(),
                 Attribute.ToColor((AttributeType)a),
                 _attributeList,
-                () => Tooltip.Open(Player.data.GetAttribute((AttributeType)a).GetTooltip()),
+                () => Tooltip.Open(Player.selectedActor.data.GetAttribute((AttributeType)a).GetTooltip()),
                 null,
                 null,
                 null,
@@ -74,11 +74,11 @@ public class CharacterUIManager : TabBehaviour
 
             _attributeItems[a].transform.Find("levelup").GetComponent<GenericPointerHandler>().Initialize(
                 null,
-                () => Player.IncrementAttribute((AttributeType)a),
+                null,
                 null,
                 null,
                 null);
-            _attributeItems[a].transform.Find("levelup").gameObject.SetActive(Player.spendableLevels > 0);
+            _attributeItems[a].transform.Find("levelup").gameObject.SetActive(false);
         }
         for (int i = 0; i < _vitalItems.Length; i++)
         {
@@ -86,10 +86,10 @@ public class CharacterUIManager : TabBehaviour
 
             _vitalItems[a] = CreateValueHeaderItem(
                 ((VitalType)i).ToString(),
-                Player.data.GetVital((VitalType)i).current + " / " + Player.data.GetVital((VitalType)i).GetMax(),
+                Player.selectedActor.data.GetVital((VitalType)i).current + " / " + Player.selectedActor.data.GetVital((VitalType)i).GetMax(),
                 Vital.ToColor((VitalType)i),
                 _vitalList,
-                () => Tooltip.Open(Player.data.GetVital((VitalType)a).ToTooltip()),
+                () => Tooltip.Open(Player.selectedActor.data.GetVital((VitalType)a).ToTooltip()),
                 null,
                 null,
                 null,
@@ -97,7 +97,7 @@ public class CharacterUIManager : TabBehaviour
         }
         for (int i = 0; i < Enum.GetNames(typeof(StatType)).Length; i++)
         {
-            Stat s = Player.data.GetStat((StatType)i);
+            Stat s = Player.selectedActor.data.GetStat((StatType)i);
 
             _statItems[i] = CreateValueHeaderItem(
                 s.GetHeader(),
@@ -114,30 +114,30 @@ public class CharacterUIManager : TabBehaviour
 
     void OnAttributeChanged(object[] args)
     {
-        if ((Actor)args[0] != Player.actor)
+        if ((Actor)args[0] != Player.selectedActor)
             return;
 
-        _attributeItems[(int)args[1]].transform.Find("value").GetComponent<Text>().text = Player.data.GetAttribute((AttributeType)args[1]).value.ToString();
+        _attributeItems[(int)args[1]].transform.Find("value").GetComponent<Text>().text = Player.selectedActor.data.GetAttribute((AttributeType)args[1]).value.ToString();
     
         UpdateStats(args);
         ToggleAttributeLevelUps(args);
     }
     void OnVitalChanged(object[] args)
     {
-        if ((Actor)args[0] != Player.actor)
+        if ((Actor)args[0] != Player.selectedActor)
             return;
 
-        _vitalItems[(int)args[1]].transform.Find("value").GetComponent<Text>().text = Player.data.GetVital((VitalType)args[1]).current + " / " + Player.data.GetVital((VitalType)args[1]).GetMax();
+        _vitalItems[(int)args[1]].transform.Find("value").GetComponent<Text>().text = Player.selectedActor.data.GetVital((VitalType)args[1]).current + " / " + Player.selectedActor.data.GetVital((VitalType)args[1]).GetMax();
 
         UpdateStats(args);
     }
     void UpdateStats(object[] args)
     {
-        if ((Actor)args[0] != Player.actor)
+        if ((Actor)args[0] != Player.selectedActor)
             return;
 
         for (int i = 0; i < Enum.GetNames(typeof(StatType)).Length; i++)
-            _statItems[i].transform.Find("value").GetComponent<Text>().text = Player.data.GetStat((StatType)i).GetValueFormatted();
+            _statItems[i].transform.Find("value").GetComponent<Text>().text = Player.selectedActor.data.GetStat((StatType)i).GetValueFormatted();
     }
 
     GameObject CreateValueHeaderItem(string header, string value, Color iconColor, Transform list, System.Action onEnter = null, System.Action onLeft = null, System.Action onScroll = null, System.Action onRight = null, System.Action onExit = null)
@@ -160,10 +160,10 @@ public class CharacterUIManager : TabBehaviour
     }
     void ToggleAttributeLevelUps(object[] args)
     {
-        if ((Actor)args[0] != Player.actor)
+        if ((Actor)args[0] != Player.selectedActor)
             return;
 
         for (int i = 0; i < _attributeItems.Length; i++)
-            _attributeItems[i].transform.Find("levelup").gameObject.SetActive(Player.spendableLevels > 0 && Player.data.GetAttribute((AttributeType)i).assigned < 25);
+            _attributeItems[i].transform.Find("levelup").gameObject.SetActive(false);
     }
 }
